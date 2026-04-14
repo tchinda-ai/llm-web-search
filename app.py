@@ -5,11 +5,14 @@ LLM App with Web Search
 import asyncio
 import os
 import tempfile
+import time
 from urllib.parse import urlparse
 from urllib.robotparser import RobotFileParser
 
 # Allow overriding the Ollama host via env var (useful inside Docker)
 OLLAMA_HOST = os.environ.get("OLLAMA_HOST", "http://localhost:11434")
+# Self-hosted SearXNG instance (avoids DDG rate limits from Docker IPs)
+SEARXNG_URL = os.environ.get("SEARXNG_URL", "http://localhost:8080")
 
 import chromadb
 import ollama
@@ -20,7 +23,6 @@ from crawl4ai import AsyncWebCrawler, BrowserConfig, CacheMode, CrawlerRunConfig
 from crawl4ai.content_filter_strategy import BM25ContentFilter
 from crawl4ai.markdown_generation_strategy import DefaultMarkdownGenerator
 from crawl4ai.models import CrawlResult
-from duckduckgo_search import DDGS
 from langchain_community.document_loaders import UnstructuredMarkdownLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 
@@ -82,7 +84,7 @@ def call_llm(prompt: str, with_context: bool = True, context: str | None = None)
         messages[0]["content"] = prompt
 
     client = ollama.Client(host=OLLAMA_HOST)
-    response = client.chat(model="llama3.2", stream=True, messages=messages)
+    response = client.chat(model="llama3.2:1b", stream=True, messages=messages)
 
     for chunk in response:
         if chunk["done"] is False:
@@ -108,7 +110,8 @@ def get_vector_collection() -> tuple[chromadb.Collection, chromadb.Client]:
     )
 
     chroma_client = chromadb.PersistentClient(
-        path="./web-search-llm-db", settings=Settings(anonymized_telemetry=False)
+        path="./web-search-llm-db",
+        settings=Settings(anonymized_telemetry=False, chroma_api_impl="chromadb.api.segment.SegmentAPI"),
     )
     return (
         chroma_client.get_or_create_collection(
@@ -267,28 +270,49 @@ def check_robots_txt(urls: list[str]) -> list[str]:
 
 
 def get_web_urls(search_term: str, num_results: int = 10) -> list[str]:
-    """Performs a web search and returns filtered URLs.
+    """Performs a web search via SearXNG and returns filtered URLs.
 
-    Uses DuckDuckGo search to find relevant web pages, excluding certain domains and checking
-    robots.txt compliance.
+    Queries the self-hosted SearXNG JSON API which aggregates results from
+    multiple engines (Google, Bing, DDG), bypassing direct rate-limit issues.
 
     Args:
         search_term (str): The search query to use
-        num_results (int, optional): Maximum number of search results to return. Defaults to 10.
+        num_results (int, optional): Maximum number of search results. Defaults to 10.
 
     Returns:
         list[str]: List of URLs that are allowed to be crawled according to robots.txt
-
-    Raises:
-        Exception: If web search fails, prints error message and stops execution
     """
-    try:
-        discard_urls = ["youtube.com", "britannica.com", "vimeo.com"]
-        for url in discard_urls:
-            search_term += f" -site:{url}"
+    import json
+    import urllib.request
 
-        results = DDGS().text(search_term, max_results=num_results)
-        results = [result["href"] for result in results]
+    discard_domains = ["youtube.com", "britannica.com", "vimeo.com"]
+
+    try:
+        params = urllib.parse.urlencode({
+            "q": search_term,
+            "format": "json",
+            "language": "en-US",
+            "engines": "google,bing,duckduckgo",
+        })
+        url = f"{SEARXNG_URL}/search?{params}"
+        print(f"Querying SearXNG: {url}")
+
+        req = urllib.request.Request(
+            url,
+            headers={"User-Agent": "llm-web-search/1.0"},
+        )
+        with urllib.request.urlopen(req, timeout=15) as resp:
+            data = json.loads(resp.read().decode())
+
+        results = [
+            r["url"]
+            for r in data.get("results", [])
+            if not any(d in r.get("url", "") for d in discard_domains)
+        ][:num_results]
+
+        if not results:
+            st.warning("SearXNG returned no results. Try a different query.")
+            st.stop()
 
         return check_robots_txt(results)
 
