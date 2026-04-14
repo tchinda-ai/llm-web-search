@@ -1,8 +1,6 @@
 services:
 
   # ── Ollama LLM server ──────────────────────────────────────────────────────
-  # Runs the default ollama/ollama entrypoint (ollama serve).
-  # Health check only verifies the API is up — fast and reliable.
   ollama:
     image: ollama/ollama:latest
     container_name: ollama
@@ -19,8 +17,6 @@ services:
     restart: unless-stopped
 
   # ── One-shot model downloader ──────────────────────────────────────────────
-  # Runs once after ollama is healthy, pulls both models, then exits (code 0).
-  # Reuses the same ollama image — no extra image needed.
   model-init:
     image: ollama/ollama:latest
     container_name: model-init
@@ -35,8 +31,27 @@ services:
         condition: service_healthy
     restart: "no"
 
+  # ── SearXNG — self-hosted meta search engine ───────────────────────────────
+  # Queries Google, Bing, DDG etc. from its own IP pool — no API keys needed,
+  # no rate-limit issues from Docker IPs hitting DDG directly.
+  searxng:
+    image: searxng/searxng:latest
+    container_name: searxng
+    volumes:
+      - ./searxng:/etc/searxng:rw
+    environment:
+      - SEARXNG_BASE_URL=http://searxng:8080
+    ports:
+      - "8080:8080"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8080/healthz || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 15s
+    restart: unless-stopped
+
   # ── Streamlit application ──────────────────────────────────────────────────
-  # Only starts after model-init exits successfully (models are guaranteed ready).
   app:
     build:
       context: .
@@ -46,9 +61,13 @@ services:
       - "8501:8501"
     environment:
       - OLLAMA_HOST=http://ollama:11434
+      - SEARXNG_URL=http://searxng:8080
+      - ANONYMIZED_TELEMETRY=False
     depends_on:
       model-init:
         condition: service_completed_successfully
+      searxng:
+        condition: service_healthy
     volumes:
       - chroma_data:/app/web-search-llm-db
     restart: unless-stopped
