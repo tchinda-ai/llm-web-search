@@ -1,6 +1,6 @@
 SHELL :=/bin/bash
 
-.PHONY: clean check setup
+.PHONY: clean check setup docker-up docker-down docker-logs
 .DEFAULT_GOAL=help
 VENV_DIR = .venv
 PYTHON_VERSION = python3.11
@@ -28,6 +28,16 @@ setup: # Initial project setup
 	@echo "Installing dependencies..."
 	@source $(VENV_DIR)/bin/activate && pip install -r requirements/requirements-dev.txt && pip install -r requirements/requirements.txt
 	@echo -e "\n✅ Done.\n🎉 Run the following commands to get started:\n\n ➡️ source $(VENV_DIR)/bin/activate\n ➡️ make run\n"
+
+docker-up: # Build and start the full stack (Ollama + Streamlit app)
+	@docker compose up --build -d
+	@echo "✅ Stack is up! Open http://localhost:8501"
+
+docker-down: # Stop and remove containers
+	@docker compose down
+
+docker-logs: # Follow logs from all containers
+	@docker compose logs -f
 
 
 help: # Show this help

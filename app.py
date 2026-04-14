@@ -8,6 +8,9 @@ import tempfile
 from urllib.parse import urlparse
 from urllib.robotparser import RobotFileParser
 
+# Allow overriding the Ollama host via env var (useful inside Docker)
+OLLAMA_HOST = os.environ.get("OLLAMA_HOST", "http://localhost:11434")
+
 import chromadb
 import ollama
 import streamlit as st
@@ -78,7 +81,8 @@ def call_llm(prompt: str, with_context: bool = True, context: str | None = None)
         messages.pop(0)
         messages[0]["content"] = prompt
 
-    response = ollama.chat(model="llama3.2:3b", stream=True, messages=messages)
+    client = ollama.Client(host=OLLAMA_HOST)
+    response = client.chat(model="llama3.2", stream=True, messages=messages)
 
     for chunk in response:
         if chunk["done"] is False:
@@ -99,7 +103,7 @@ def get_vector_collection() -> tuple[chromadb.Collection, chromadb.Client]:
             - The ChromaDB client instance
     """
     ollama_ef = OllamaEmbeddingFunction(
-        url="http://localhost:11434/api/embeddings",
+        url=f"{OLLAMA_HOST}/api/embeddings",
         model_name="nomic-embed-text:latest",
     )
 

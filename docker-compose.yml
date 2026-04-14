@@ -1,0 +1,58 @@
+services:
+
+  # ── Ollama LLM server ──────────────────────────────────────────────────────
+  # Runs the default ollama/ollama entrypoint (ollama serve).
+  # Health check only verifies the API is up — fast and reliable.
+  ollama:
+    image: ollama/ollama:latest
+    container_name: ollama
+    volumes:
+      - ollama_data:/root/.ollama
+    ports:
+      - "11434:11434"
+    healthcheck:
+      test: ["CMD", "ollama", "list"]
+      interval: 10s
+      timeout: 5s
+      retries: 15
+      start_period: 20s
+    restart: unless-stopped
+
+  # ── One-shot model downloader ──────────────────────────────────────────────
+  # Runs once after ollama is healthy, pulls both models, then exits (code 0).
+  # Reuses the same ollama image — no extra image needed.
+  model-init:
+    image: ollama/ollama:latest
+    container_name: model-init
+    environment:
+      - OLLAMA_HOST=http://ollama:11434
+    entrypoint: ["/bin/bash", "-c",
+      "ollama pull llama3.2:1b && ollama pull nomic-embed-text:latest"]
+    volumes:
+      - ollama_data:/root/.ollama
+    depends_on:
+      ollama:
+        condition: service_healthy
+    restart: "no"
+
+  # ── Streamlit application ──────────────────────────────────────────────────
+  # Only starts after model-init exits successfully (models are guaranteed ready).
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: llm-web-search
+    ports:
+      - "8501:8501"
+    environment:
+      - OLLAMA_HOST=http://ollama:11434
+    depends_on:
+      model-init:
+        condition: service_completed_successfully
+    volumes:
+      - chroma_data:/app/web-search-llm-db
+    restart: unless-stopped
+
+volumes:
+  ollama_data:
+  chroma_data:
