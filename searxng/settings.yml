@@ -14,13 +14,23 @@ search:
   timeout_limit: 8.0
 
 engines:
+  # Google's HTML structure changes frequently and breaks SearXNG's parser.
+  # Disabled to prevent log spam — Bing, Brave, and DDG cover the same results.
   - name: google
+    disabled: true
+
+  # google_news uses a more stable API endpoint (less prone to breakage)
+  - name: google news
     disabled: false
+
   - name: bing
     disabled: false
+
   - name: brave
     disabled: false
+
   - name: duckduckgo
     disabled: false
+
   - name: wikipedia
     disabled: false
