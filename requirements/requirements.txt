@@ -1,4 +1,4 @@
 streamlit==1.42.0
 Crawl4AI==0.4.248
 Markdown==3.7
-ollama==0.4.7
+openai>=1.0.0

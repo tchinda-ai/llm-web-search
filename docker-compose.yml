@@ -1,38 +1,7 @@
 services:
 
-  # ── Ollama LLM server ──────────────────────────────────────────────────────
-  ollama:
-    image: ollama/ollama:latest
-    container_name: ollama
-    volumes:
-      - ollama_data:/root/.ollama
-    ports:
-      - "11434:11434"
-    healthcheck:
-      test: ["CMD", "ollama", "list"]
-      interval: 10s
-      timeout: 5s
-      retries: 15
-      start_period: 20s
-    restart: unless-stopped
-
-  # ── One-shot model downloader ──────────────────────────────────────────────
-  # Pulls llama3.1:8b (improved reasoning vs llama3.2:1b) on first run.
-  # nomic-embed-text is no longer needed — ChromaDB/embeddings removed.
-  model-init:
-    image: ollama/ollama:latest
-    container_name: model-init
-    environment:
-      - OLLAMA_HOST=http://ollama:11434
-    entrypoint: ["/bin/bash", "-c", "ollama pull llama3.1:8b"]
-    volumes:
-      - ollama_data:/root/.ollama
-    depends_on:
-      ollama:
-        condition: service_healthy
-    restart: "no"
-
   # ── SearXNG — self-hosted meta search engine ───────────────────────────────
+  # Queries Google, Bing, Brave, DDG — no API keys, no rate limits.
   searxng:
     image: searxng/searxng:latest
     container_name: searxng
@@ -51,6 +20,7 @@ services:
     restart: unless-stopped
 
   # ── Streamlit application ──────────────────────────────────────────────────
+  # LLM inference is handled by NVIDIA NIM cloud API — no local GPU/model needed.
   app:
     build:
       context: .
@@ -58,16 +28,12 @@ services:
     container_name: llm-web-search
     ports:
       - "8501:8501"
+    env_file:
+      - .env                          # NVIDIA_API_KEY and NVIDIA_MODEL live here
     environment:
-      - OLLAMA_HOST=http://ollama:11434
       - SEARXNG_URL=http://searxng:8080
       - ANONYMIZED_TELEMETRY=False
     depends_on:
-      model-init:
-        condition: service_completed_successfully
       searxng:
         condition: service_healthy
     restart: unless-stopped
-
-volumes:
-  ollama_data:

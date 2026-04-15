@@ -11,12 +11,13 @@ from datetime import datetime
 from urllib.parse import urlparse
 from urllib.robotparser import RobotFileParser
 
-# Allow overriding the Ollama host via env var (useful inside Docker)
-OLLAMA_HOST = os.environ.get("OLLAMA_HOST", "http://localhost:11434")
+# NVIDIA NIM API configuration (OpenAI-compatible endpoint)
+NVIDIA_API_KEY = os.environ.get("NVIDIA_API_KEY", "")
+NVIDIA_MODEL = os.environ.get("NVIDIA_MODEL", "meta/llama-3.3-70b-instruct")
 # Self-hosted SearXNG instance (avoids DDG rate limits from Docker IPs)
 SEARXNG_URL = os.environ.get("SEARXNG_URL", "http://localhost:8080")
 
-import ollama
+from openai import OpenAI
 import streamlit as st
 from crawl4ai import AsyncWebCrawler, BrowserConfig, CacheMode, CrawlerRunConfig
 from crawl4ai.content_filter_strategy import BM25ContentFilter
@@ -42,7 +43,11 @@ Do NOT fabricate specific facts (names, dates, amounts, company names) that are 
 
 
 def call_llm(prompt: str, with_context: bool = True, context: str | None = None):
-    """Calls the LLM model with the given prompt and optional context.
+    """Calls the NVIDIA NIM cloud LLM via OpenAI-compatible API.
+
+    The model and API key are configured via environment variables:
+        NVIDIA_API_KEY  — your NVIDIA NIM API key
+        NVIDIA_MODEL    — model identifier (default: meta/llama-3.3-70b-instruct)
 
     Args:
         prompt (str): The user prompt/question to send to the LLM
@@ -52,6 +57,10 @@ def call_llm(prompt: str, with_context: bool = True, context: str | None = None)
     Yields:
         str: Generated text chunks from the LLM response stream
     """
+    if not NVIDIA_API_KEY:
+        yield "❌ NVIDIA_API_KEY is not set. Add it to your .env file."
+        return
+
     if with_context:
         messages = [
             {"role": "system", "content": system_prompt},
@@ -60,14 +69,23 @@ def call_llm(prompt: str, with_context: bool = True, context: str | None = None)
     else:
         messages = [{"role": "user", "content": prompt}]
 
-    client = ollama.Client(host=OLLAMA_HOST)
-    response = client.chat(model="llama3.1:8b", stream=True, messages=messages)
+    client = OpenAI(
+        base_url="https://integrate.api.nvidia.com/v1",
+        api_key=NVIDIA_API_KEY,
+    )
+
+    response = client.chat.completions.create(
+        model=NVIDIA_MODEL,
+        messages=messages,
+        temperature=0.2,
+        top_p=0.7,
+        max_tokens=1024,
+        stream=True,
+    )
 
     for chunk in response:
-        if chunk["done"] is False:
-            yield chunk["message"]["content"]
-        else:
-            break
+        if chunk.choices and chunk.choices[0].delta.content is not None:
+            yield chunk.choices[0].delta.content
 
 
 def enrich_query(prompt: str) -> str:
@@ -312,6 +330,16 @@ def get_web_urls(search_term: str, num_results: int = 10) -> tuple[list[str], st
 
 async def run():
     st.set_page_config(page_title="LLM with Web Search")
+
+    # Sidebar — model info and config
+    with st.sidebar:
+        st.markdown("### ⚙️ Configuration")
+        st.markdown(f"**Model:** `{NVIDIA_MODEL}`")
+        st.markdown(f"**Provider:** NVIDIA NIM")
+        if not NVIDIA_API_KEY:
+            st.error("⚠️ NVIDIA_API_KEY not set")
+        else:
+            st.success("✅ API key configured")
 
     st.header("🔍 LLM Web Search")
     prompt = st.text_area(
