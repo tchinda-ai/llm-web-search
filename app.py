@@ -147,25 +147,17 @@ def normalize_url(url):
     return normalized_url
 
 
-def add_to_vector_database(results: list[CrawlResult]):
+def add_to_vector_database(results: list[CrawlResult], collection: chromadb.Collection):
     """Adds crawl results to a vector database for semantic search.
-
-    Takes a list of crawl results, processes the markdown content by splitting it into chunks,
-    and stores the chunks in a ChromaDB vector collection with associated metadata.
 
     Args:
         results (list[CrawlResult]): List of crawl results containing markdown content and URLs
+        collection (chromadb.Collection): The ChromaDB collection to upsert into.
+            Must be the same collection object that will be used for querying.
 
     Returns:
         None
-
-    Note:
-        - Uses RecursiveCharacterTextSplitter to split markdown into chunks
-        - Creates temporary markdown files for processing
-        - Normalizes URLs for use as document IDs
-        - Upserts documents, metadata and IDs to ChromaDB collection
     """
-    collection, _ = get_vector_collection()
 
     for result in results:
         documents, metadatas, ids = [], [], []
@@ -202,6 +194,8 @@ def add_to_vector_database(results: list[CrawlResult]):
                 metadatas.append({"source": result.url})
                 ids.append(f"{normalized_url}_{idx}")
 
+            print("documents: ", documents)
+            print("metadatas: ", metadatas)
             print("Upsert collection: ", id(collection))
             collection.upsert(
                 documents=documents,
@@ -245,6 +239,7 @@ async def crawl_webpages(urls: list[str], prompt: str) -> CrawlResult:
 
     async with AsyncWebCrawler(config=browser_config) as crawler:
         results = await crawler.arun_many(urls, config=crawler_config)
+        print("results from crawlers : {results}")
         return results
 
 
@@ -320,6 +315,8 @@ def get_web_urls(search_term: str, num_results: int = 10) -> list[str]:
         if not results:
             st.warning("SearXNG returned no results. Try a different query.")
             st.stop()
+        
+        print(f"Found URLs from SearXNG: {results}")
 
         return check_robots_txt(results)
 
@@ -344,17 +341,21 @@ async def run():
         "⚡️ Go",
     )
 
-    collection, chroma_client = get_vector_collection()
-
     if prompt and go:
         if is_web_search:
+            # Create ONE client for the entire request cycle.
+            # Passing it through avoids stale collection references caused by
+            # multiple PersistentClient instances pointing at the same DB files.
+            collection, chroma_client = get_vector_collection()
+
             web_urls = get_web_urls(search_term=prompt)
             if not web_urls:
                 st.write("No results found.")
                 st.stop()
 
+            print("input prompt : {prompt}")
             results = await crawl_webpages(urls=web_urls, prompt=prompt)
-            add_to_vector_database(results)
+            add_to_vector_database(results, collection)
 
             qresults = collection.query(query_texts=[prompt], n_results=10)
             context = qresults.get("documents")[0]
