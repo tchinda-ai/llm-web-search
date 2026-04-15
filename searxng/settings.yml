@@ -2,26 +2,23 @@
 use_default_settings: true
 
 server:
-  # Must be a long random string — change this if exposing publicly
   secret_key: "llm-web-search-searxng-secret-key-local"
-  # Disable rate limiter — we're calling from our own app container
   limiter: false
-  # Allow JSON format responses (required for API usage)
   image_proxy: false
 
 search:
-  # Enable JSON format for the API
   formats:
     - html
     - json
   default_lang: "en-US"
-  # Reduce timeout for faster responses
-  timeout_limit: 6.0
+  timeout_limit: 8.0
 
 engines:
   - name: google
     disabled: false
   - name: bing
+    disabled: false
+  - name: brave
     disabled: false
   - name: duckduckgo
     disabled: false

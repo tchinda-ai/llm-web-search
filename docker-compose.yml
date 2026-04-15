@@ -17,13 +17,14 @@ services:
     restart: unless-stopped
 
   # ── One-shot model downloader ──────────────────────────────────────────────
+  # Pulls llama3.1:8b (improved reasoning vs llama3.2:1b) on first run.
+  # nomic-embed-text is no longer needed — ChromaDB/embeddings removed.
   model-init:
     image: ollama/ollama:latest
     container_name: model-init
     environment:
       - OLLAMA_HOST=http://ollama:11434
-    entrypoint: ["/bin/bash", "-c",
-      "ollama pull llama3.2:1b && ollama pull nomic-embed-text:latest"]
+    entrypoint: ["/bin/bash", "-c", "ollama pull llama3.1:8b"]
     volumes:
       - ollama_data:/root/.ollama
     depends_on:
@@ -32,8 +33,6 @@ services:
     restart: "no"
 
   # ── SearXNG — self-hosted meta search engine ───────────────────────────────
-  # Queries Google, Bing, DDG etc. from its own IP pool — no API keys needed,
-  # no rate-limit issues from Docker IPs hitting DDG directly.
   searxng:
     image: searxng/searxng:latest
     container_name: searxng
@@ -68,10 +67,7 @@ services:
         condition: service_completed_successfully
       searxng:
         condition: service_healthy
-    volumes:
-      - chroma_data:/app/web-search-llm-db
     restart: unless-stopped
 
 volumes:
   ollama_data:
-  chroma_data:

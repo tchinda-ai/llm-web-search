@@ -3,9 +3,11 @@ LLM App with Web Search
 """
 
 import asyncio
+import json
 import os
-import tempfile
-import time
+import urllib.parse
+import urllib.request
+from datetime import datetime
 from urllib.parse import urlparse
 from urllib.robotparser import RobotFileParser
 
@@ -14,43 +16,28 @@ OLLAMA_HOST = os.environ.get("OLLAMA_HOST", "http://localhost:11434")
 # Self-hosted SearXNG instance (avoids DDG rate limits from Docker IPs)
 SEARXNG_URL = os.environ.get("SEARXNG_URL", "http://localhost:8080")
 
-import chromadb
 import ollama
 import streamlit as st
-from chromadb.config import Settings
-from chromadb.utils.embedding_functions import OllamaEmbeddingFunction
 from crawl4ai import AsyncWebCrawler, BrowserConfig, CacheMode, CrawlerRunConfig
 from crawl4ai.content_filter_strategy import BM25ContentFilter
 from crawl4ai.markdown_generation_strategy import DefaultMarkdownGenerator
 from crawl4ai.models import CrawlResult
-from langchain_community.document_loaders import UnstructuredMarkdownLoader
-from langchain_text_splitters import RecursiveCharacterTextSplitter
 
 system_prompt = """
-You are an AI assistant tasked with providing detailed answers based solely on the given context.
-Your goal is to analyze the information provided and formulate a comprehensive, well-structured response to the question.
+You are a research assistant with real-time web search access. You receive web search results as context.
 
-Context will be passed as "Context:"
-User question will be passed as "Question:"
+Your task:
+1. Synthesize the provided context to answer the question accurately and completely.
+2. Supplement with your own knowledge where the context has gaps, but clearly prefer the context for current facts.
+3. Always cite your sources using [Source: URL] inline when a specific fact comes from the context.
+4. If the context contains no relevant information at all, say so briefly, then answer from your knowledge with a disclaimer that the information may not be current.
+5. Structure your response clearly: use headings, bullet points, and tables where appropriate.
+6. For time-sensitive queries (events, prices, news), note that your context reflects the web results at query time.
 
-To answer the question:
-1. Thoroughly analyze the context, identifying key information relevant to the question.
-2. Organize your thoughts and plan your response to ensure a logical flow of information.
-3. Formulate a detailed answer that directly addresses the question, using only the information provided in the context.
-4. When the context supports an answer, ensure your response is clear, concise, and directly addresses the question.
-5. When there is no context, just say you have no context and stop immediately.
-6. If the context doesn't contain sufficient information to fully answer the question, state this clearly in your response.
-7. Avoid explaining why you cannot answer or speculating about missing details. Simply state that you lack sufficient context when necessary.
+Context will be passed as "Context:" (text chunks with [Source: URL] labels)
+Question will be passed as "Question:"
 
-Format your response as follows:
-1. Use clear, concise language.
-2. Organize your answer into paragraphs for readability.
-3. Use bullet points or numbered lists where appropriate to break down complex information.
-4. If relevant, include any headings or subheadings to structure your response.
-5. Ensure proper grammar, punctuation, and spelling throughout your answer.
-6. Do not mention what you received in context, just focus on answering based on the context.
-
-Important: Base your entire response solely on the information provided in the context. Do not include any external knowledge or assumptions not present in the given text.
+Do NOT fabricate specific facts (names, dates, amounts, company names) that are not in the context or your verified training data.
 """
 
 
@@ -64,27 +51,17 @@ def call_llm(prompt: str, with_context: bool = True, context: str | None = None)
 
     Yields:
         str: Generated text chunks from the LLM response stream
-
-    Returns:
-        Generator[str, None, None]: A generator yielding response chunks
     """
-    messages = [
-        {
-            "role": "system",
-            "content": system_prompt,
-        },
-        {
-            "role": "user",
-            "content": f"Context: {context}, Question: {prompt}",
-        },
-    ]
-
-    if not with_context:
-        messages.pop(0)
-        messages[0]["content"] = prompt
+    if with_context:
+        messages = [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": f"Context:\n{context}\n\nQuestion: {prompt}"},
+        ]
+    else:
+        messages = [{"role": "user", "content": prompt}]
 
     client = ollama.Client(host=OLLAMA_HOST)
-    response = client.chat(model="llama3.2:1b", stream=True, messages=messages)
+    response = client.chat(model="llama3.1:8b", stream=True, messages=messages)
 
     for chunk in response:
         if chunk["done"] is False:
@@ -93,153 +70,156 @@ def call_llm(prompt: str, with_context: bool = True, context: str | None = None)
             break
 
 
-def get_vector_collection() -> tuple[chromadb.Collection, chromadb.Client]:
-    """Creates or retrieves a vector collection for storing embeddings.
+def enrich_query(prompt: str) -> str:
+    """Adds temporal context to time-sensitive search queries.
 
-    Creates an embedding function using Ollama and initializes a persistent ChromaDB client.
-    Returns both the collection and client objects.
+    Appends the current year when the query looks time-sensitive (events, news,
+    top lists, etc.) so search engines return fresh results rather than old pages.
+
+    Args:
+        prompt (str): The original user query.
 
     Returns:
-        tuple[chromadb.Collection, chromadb.Client]: A tuple containing:
-            - The ChromaDB collection for storing embeddings
-            - The ChromaDB client instance
+        str: The enriched query.
     """
-    ollama_ef = OllamaEmbeddingFunction(
-        url=f"{OLLAMA_HOST}/api/embeddings",
-        model_name="nomic-embed-text:latest",
-    )
-
-    chroma_client = chromadb.PersistentClient(
-        path="./web-search-llm-db",
-        settings=Settings(anonymized_telemetry=False, chroma_api_impl="chromadb.api.segment.SegmentAPI"),
-    )
-    return (
-        chroma_client.get_or_create_collection(
-            name="web_llm",
-            embedding_function=ollama_ef,
-            metadata={"hnsw:space": "cosine"},
-        ),
-        chroma_client,
-    )
+    year = datetime.now().year
+    time_keywords = [
+        "latest", "upcoming", "current", "top", "best", "new",
+        "events", "news", "recently", "this year", "2024", "2025", "2026",
+    ]
+    if any(kw in prompt.lower() for kw in time_keywords):
+        return f"{prompt} {year}"
+    return prompt
 
 
-def normalize_url(url):
-    """Normalizes a URL by removing common prefixes and replacing special characters.
+def normalize_url(url: str) -> str:
+    """Normalizes a URL into a safe string for use as a ChromaDB document ID.
 
     Args:
         url (str): The URL to normalize.
 
     Returns:
-        str: The normalized URL with https://, www. removed and /, -, . replaced with underscores.
+        str: Normalized URL with special characters replaced by underscores.
 
     Example:
         >>> normalize_url("https://www.example.com/path")
         "example_com_path"
     """
-    normalized_url = (
+    return (
         url.replace("https://", "")
+        .replace("http://", "")
         .replace("www.", "")
         .replace("/", "_")
         .replace("-", "_")
         .replace(".", "_")
     )
-    print("Normalized URL", normalized_url)
-    return normalized_url
 
 
-def add_to_vector_database(results: list[CrawlResult], collection: chromadb.Collection):
-    """Adds crawl results to a vector database for semantic search.
+def build_context_from_crawl(
+    results: list[CrawlResult],
+    prompt: str,
+    snippet_context: str = "",
+    max_chars: int = 6000,
+) -> tuple[str, list[str]]:
+    """Assembles ranked context directly from crawl results — no vector DB needed.
+
+    Scores each paragraph by keyword overlap with the query, then concatenates
+    the top chunks up to max_chars. Source URLs are embedded in the context
+    string so the LLM can cite them inline.
 
     Args:
-        results (list[CrawlResult]): List of crawl results containing markdown content and URLs
-        collection (chromadb.Collection): The ChromaDB collection to upsert into.
-            Must be the same collection object that will be used for querying.
+        results (list[CrawlResult]): Crawled page results.
+        prompt (str): The original user query (used for keyword ranking).
+        snippet_context (str): Pre-formatted SearXNG snippet context to prepend.
+        max_chars (int): Maximum total characters to include in context.
 
     Returns:
-        None
+        tuple[str, list[str]]: (context_string, list_of_source_urls)
     """
+    query_words = set(prompt.lower().split())
+    scored_chunks: list[tuple[int, str, str]] = []
 
     for result in results:
-        documents, metadatas, ids = [], [], []
-
-        text_splitter = RecursiveCharacterTextSplitter(
-            chunk_size=400,
-            chunk_overlap=100,
-            separators=["\n\n", "\n", ".", "?", "!", " ", ""],
-        )
-        if result.markdown_v2:
-            # Prefer BM25-filtered content; fall back to raw markdown when the
-            # filter strips everything (common for niche/French-language pages).
-            markdown_result = result.markdown_v2.fit_markdown
-            if not markdown_result.strip():
-                markdown_result = result.markdown_v2.raw_markdown
-                print(f"BM25 returned empty for {result.url}, using raw_markdown fallback")
-        else:
+        if not result.markdown_v2:
             continue
 
-        temp_file = tempfile.NamedTemporaryFile("w", suffix=".md", delete=False)
-        temp_file.write(markdown_result)
-        temp_file.flush()
+        # Prefer BM25-filtered content; fall back to raw markdown when the
+        # filter strips everything (common for French-language/niche pages).
+        text = result.markdown_v2.fit_markdown
+        if not text or not text.strip():
+            text = result.markdown_v2.raw_markdown
+            if not text or not text.strip():
+                print(f"No content extracted from {result.url}")
+                continue
 
-        loader = UnstructuredMarkdownLoader(temp_file.name, mode="single")
-        docs = loader.load()
-        all_splits = text_splitter.split_documents(docs)
-        os.unlink(temp_file.name)  # Delete the temporary file
+        paragraphs = [p.strip() for p in text.split("\n\n") if len(p.strip()) > 80]
+        for para in paragraphs:
+            words = set(para.lower().split())
+            overlap = len(words & query_words)
+            scored_chunks.append((overlap, para, result.url))
 
-        normalized_url = normalize_url(result.url)
+    # Sort by relevance, highest keyword overlap first
+    scored_chunks.sort(key=lambda x: x[0], reverse=True)
 
-        if all_splits:
-            for idx, split in enumerate(all_splits):
-                documents.append(split.page_content)
-                metadatas.append({"source": result.url})
-                ids.append(f"{normalized_url}_{idx}")
+    context_parts: list[str] = []
+    sources: list[str] = []
+    total_chars = 0
 
-            print("documents: ", documents)
-            print("metadatas: ", metadatas)
-            print("Upsert collection: ", id(collection))
-            collection.upsert(
-                documents=documents,
-                metadatas=metadatas,
-                ids=ids,
-            )
+    # Prepend SearXNG snippets as a lightweight fast-context layer
+    if snippet_context:
+        context_parts.append(f"## Search Result Summaries\n{snippet_context}")
+        total_chars += len(snippet_context)
+
+    context_parts.append("## Crawled Page Content")
+    for _score, chunk, url in scored_chunks:
+        if total_chars + len(chunk) > max_chars:
+            break
+        context_parts.append(f"[Source: {url}]\n{chunk}")
+        if url not in sources:
+            sources.append(url)
+        total_chars += len(chunk)
+
+    return "\n\n---\n\n".join(context_parts), sources
 
 
-async def crawl_webpages(urls: list[str], prompt: str) -> CrawlResult:
-    """Asynchronously crawls multiple webpages and extracts relevant content based on a prompt.
+async def crawl_webpages(urls: list[str], prompt: str) -> list[CrawlResult]:
+    """Asynchronously crawls multiple webpages and extracts relevant content.
 
     Args:
-        urls (list[str]): List of URLs to crawl
-        prompt (str): Query text used to filter relevant content from the pages
+        urls (list[str]): List of URLs to crawl.
+        prompt (str): Query text used for BM25 content filtering.
 
     Returns:
-        CrawlResult: Results from crawling containing filtered markdown content and metadata
+        list[CrawlResult]: Crawl results with extracted markdown content.
 
     Note:
-        Uses BM25 content filtering to extract relevant sections based on the prompt.
-        Configures crawler to exclude navigation elements, forms, images etc.
-        Runs in headless browser mode with text-only extraction.
+        - BM25 threshold is kept low (0.5) for niche/non-English pages.
+        - text_mode=False allows JavaScript to execute, which is critical for
+          JS-rendered regional/African sites.
+        - <a> tags are kept (unlike original) so event titles/links are retained.
     """
-    # Lower threshold (0.5 vs default 1.2) to retain more content from niche/
-    # non-English pages where BM25 keyword overlap with the query is naturally lower.
-    bm25_filter = BM25ContentFilter(user_query=prompt, bm25_threshold=0.5) # prev :1.2
+    bm25_filter = BM25ContentFilter(user_query=prompt, bm25_threshold=0.5)
     md_generator = DefaultMarkdownGenerator(content_filter=bm25_filter)
 
     crawler_config = CrawlerRunConfig(
         markdown_generator=md_generator,
-        excluded_tags=["nav", "footer", "header", "form", "img", "a"],
+        # Keep <a> tags — event pages link from their titles/dates
+        excluded_tags=["nav", "footer", "header", "form", "img"],
         only_text=True,
         exclude_social_media_links=True,
         keep_data_attributes=False,
         cache_mode=CacheMode.BYPASS,
         remove_overlay_elements=True,
+        word_count_threshold=30,  # skip very short blocks (ads, nav breadcrumbs)
         user_agent="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/132.0.0.0 Safari/537.36",
-        page_timeout=20000,  # in ms: 20 seconds
+        page_timeout=30000,  # 30s (up from 20s) for JS-heavy regional sites
     )
-    browser_config = BrowserConfig(headless=True, text_mode=True, light_mode=True)
+    # text_mode=False allows JavaScript to execute — critical for JS-rendered sites
+    browser_config = BrowserConfig(headless=True, text_mode=False, light_mode=True)
 
     async with AsyncWebCrawler(config=browser_config) as crawler:
         results = await crawler.arun_many(urls, config=crawler_config)
-        print("results from crawlers : {results}")
+        print(f"Crawled {len(results)} pages")
         return results
 
 
@@ -250,43 +230,40 @@ def check_robots_txt(urls: list[str]) -> list[str]:
         urls (list[str]): List of URLs to check against their robots.txt files.
 
     Returns:
-        list[str]: List of URLs that are allowed to be crawled according to robots.txt rules.
-            If a robots.txt file is missing or there's an error, the URL is assumed to be allowed.
+        list[str]: List of URLs that are allowed to be crawled. If robots.txt
+            is missing or there's an error, the URL is assumed to be allowed.
     """
     allowed_urls = []
-
     for url in urls:
         try:
             robots_url = f"{urlparse(url).scheme}://{urlparse(url).netloc}/robots.txt"
             rp = RobotFileParser(robots_url)
             rp.read()
-
             if rp.can_fetch("*", url):
                 allowed_urls.append(url)
-
         except Exception:
             # If robots.txt is missing or there's any error, assume URL is allowed
             allowed_urls.append(url)
-
     return allowed_urls
 
 
-def get_web_urls(search_term: str, num_results: int = 10) -> list[str]:
-    """Performs a web search via SearXNG and returns filtered URLs.
+def get_web_urls(search_term: str, num_results: int = 10) -> tuple[list[str], str]:
+    """Performs a web search via SearXNG and returns URLs plus snippet context.
 
     Queries the self-hosted SearXNG JSON API which aggregates results from
-    multiple engines (Google, Bing, DDG), bypassing direct rate-limit issues.
+    multiple engines (Google, Bing, Brave, DDG), bypassing direct rate-limit
+    issues from Docker IPs.
 
     Args:
-        search_term (str): The search query to use
-        num_results (int, optional): Maximum number of search results. Defaults to 10.
+        search_term (str): The (possibly enriched) search query.
+        num_results (int, optional): Maximum number of results to return. Defaults to 10.
 
     Returns:
-        list[str]: List of URLs that are allowed to be crawled according to robots.txt
+        tuple[list[str], str]:
+            - List of crawlable URLs (robots.txt filtered)
+            - snippet_context: pre-formatted string of titles+summaries from
+              SearXNG — used as a fast lightweight context layer without crawling.
     """
-    import json
-    import urllib.request
-
     discard_domains = ["youtube.com", "britannica.com", "vimeo.com"]
 
     try:
@@ -294,31 +271,37 @@ def get_web_urls(search_term: str, num_results: int = 10) -> list[str]:
             "q": search_term,
             "format": "json",
             "language": "en-US",
-            "engines": "google,bing,duckduckgo",
+            "engines": "google,bing,brave,duckduckgo",
         })
         url = f"{SEARXNG_URL}/search?{params}"
         print(f"Querying SearXNG: {url}")
 
-        req = urllib.request.Request(
-            url,
-            headers={"User-Agent": "llm-web-search/1.0"},
-        )
+        req = urllib.request.Request(url, headers={"User-Agent": "llm-web-search/1.0"})
         with urllib.request.urlopen(req, timeout=15) as resp:
             data = json.loads(resp.read().decode())
 
-        results = [
-            r["url"]
-            for r in data.get("results", [])
+        raw_results = [
+            r for r in data.get("results", [])
             if not any(d in r.get("url", "") for d in discard_domains)
         ][:num_results]
 
-        if not results:
+        if not raw_results:
             st.warning("SearXNG returned no results. Try a different query.")
             st.stop()
-        
-        print(f"Found URLs from SearXNG: {results}")
 
-        return check_robots_txt(results)
+        urls = [r["url"] for r in raw_results]
+        print(f"Found {len(urls)} URLs from SearXNG")
+
+        # Build snippet context from titles + summaries (fast, no crawling needed).
+        # This gives the LLM a quick overview even if some pages fail to crawl.
+        snippet_parts = [
+            f"[Source: {r['url']}]\n**{r.get('title', '')}**\n{r.get('content', '')}"
+            for r in raw_results
+            if r.get("content")
+        ]
+        snippet_context = "\n\n".join(snippet_parts)
+
+        return check_robots_txt(urls), snippet_context
 
     except Exception as e:
         error_msg = ("❌ Failed to fetch results from the web", str(e))
@@ -337,39 +320,41 @@ async def run():
         label_visibility="hidden",
     )
     is_web_search = st.toggle("Enable web search", value=False, key="enable_web_search")
-    go = st.button(
-        "⚡️ Go",
-    )
+    go = st.button("⚡️ Go")
 
     if prompt and go:
         if is_web_search:
-            # Create ONE client for the entire request cycle.
-            # Passing it through avoids stale collection references caused by
-            # multiple PersistentClient instances pointing at the same DB files.
-            collection, chroma_client = get_vector_collection()
+            # Enrich query with temporal context for time-sensitive questions
+            enriched_query = enrich_query(prompt)
+            if enriched_query != prompt:
+                print(f"Query enriched: '{prompt}' → '{enriched_query}'")
 
-            web_urls = get_web_urls(search_term=prompt)
+            web_urls, snippet_context = get_web_urls(search_term=enriched_query)
             if not web_urls:
                 st.write("No results found.")
                 st.stop()
 
-            print("input prompt : {prompt}")
-            results = await crawl_webpages(urls=web_urls, prompt=prompt)
-            add_to_vector_database(results, collection)
+            with st.spinner("🔍 Crawling web pages..."):
+                crawl_results = await crawl_webpages(urls=web_urls, prompt=prompt)
 
-            qresults = collection.query(query_texts=[prompt], n_results=10)
-            context = qresults.get("documents")[0]
-
-            chroma_client.delete_collection(
-                name="web_llm"
-            )  # Delete collection after use
-
-            llm_response = call_llm(
-                context=context, prompt=prompt, with_context=is_web_search
+            context, sources = build_context_from_crawl(
+                results=crawl_results,
+                prompt=prompt,
+                snippet_context=snippet_context,
             )
+
+            print(f"Context assembled from {len(sources)} crawled sources")
+
+            llm_response = call_llm(context=context, prompt=prompt, with_context=True)
             st.write_stream(llm_response)
+
+            # Show sources at the bottom
+            if sources:
+                with st.expander("📚 Sources"):
+                    for src in sources:
+                        st.markdown(f"- [{src}]({src})")
         else:
-            llm_response = call_llm(prompt=prompt, with_context=is_web_search)
+            llm_response = call_llm(prompt=prompt, with_context=False)
             st.write_stream(llm_response)
 
 
