@@ -130,7 +130,12 @@ def ask():
         try:
             context, sources = _run_pipeline(prompt)
         except ValueError as exc:
-            return jsonify({"error": str(exc)}), 404
+            return jsonify({
+                "type": "error",
+                "error": "No search results found",
+                "message": str(exc),
+                "query_used": prompt
+            }), 200
         except RuntimeError as exc:
             return jsonify({"error": str(exc)}), 502
 
