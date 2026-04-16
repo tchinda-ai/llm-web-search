@@ -72,3 +72,9 @@ services:
       searxng:
         condition: service_healthy
     restart: unless-stopped
+    networks:
+      - tchinda-ai
+
+networks:
+  tchinda-ai:
+    external: true
