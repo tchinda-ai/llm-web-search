@@ -10,7 +10,7 @@ A research assistant that combines **real-time web search** with a **cloud LLM**
 
 This project ships two fully independent configurations on separate branches, representing different architectural trade-offs:
 
-| | `main` ← **you are here** | `feature/local-llm` |
+| | `feature/web-app` ← **you are here** | `feature/local-llm` |
 |---|---|---|
 | **LLM backend** | NVIDIA NIM (cloud API) | Ollama (runs locally in Docker) |
 | **Inference speed** | Fast — cloud GPUs | Slow on CPU, fast with local GPU |
@@ -24,7 +24,7 @@ This project ships two fully independent configurations on separate branches, re
 
 ---
 
-## 🏗 Architecture (`main` — NVIDIA NIM)
+## 🏗 Architecture (`feature/web-app` — NVIDIA NIM)
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
@@ -124,7 +124,7 @@ searxng starts (parallel) → healthy
 
 ## 🐳 Infrastructure
 
-### `main` (this branch) — 2 services
+### `feature/web-app` (this branch) — 2 services
 
 | Container | Image | Role | Port |
 |---|---|---|---|
@@ -151,7 +151,7 @@ searxng starts (parallel) → healthy
 
 ## 📦 Dependencies
 
-### Python — `main` branch
+### Python — `feature/web-app` branch
 
 | Package | Version | Role |
 |---|---|---|
@@ -203,7 +203,7 @@ Chromium + Playwright system libraries — required by Crawl4AI for headless bro
 
 ---
 
-## 🚀 Quick Start (`main` — NVIDIA NIM)
+## 🚀 Quick Start (`feature/web-app` — NVIDIA NIM)
 
 ```sh
 # 1. Clone
@@ -266,7 +266,7 @@ make help          # List all available commands
 
 ## ⚖️ Pros & Cons
 
-### `main` — NVIDIA NIM (Cloud LLM)
+### `feature/web-app` — NVIDIA NIM (Cloud LLM)
 
 | | Detail |
 |---|---|
