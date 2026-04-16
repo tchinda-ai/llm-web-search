@@ -41,6 +41,173 @@ Question will be passed as "Question:"
 Do NOT fabricate specific facts (names, dates, amounts, company names) that are not in the context or your verified training data.
 """
 
+event_system_prompt = """
+You are an event extraction engine. Extract only real upcoming events with concrete dates.
+Return {"events": []} if none found.
+Respond with valid JSON only — no markdown, no explanation, no code fences.
+
+Use EXACTLY this schema for every event object:
+{
+  "title": "string",
+  "description": "string",
+  "url": "string",
+  "starts_at_raw": "ISO8601 datetime or date string",
+  "ends_at_raw": "ISO8601 datetime or date string or null",
+  "is_all_day": false,
+  "vertical": "Technology",
+  "tags": ["tag1", "tag2"],
+  "location_raw": "string",
+  "city": "string",
+  "country": "string",
+  "region": "string",
+  "is_online": false,
+  "confidence": 0.95
+}
+
+Rules:
+- Never omit 'title' or 'starts_at_raw'.
+- Only include events whose date is explicitly stated in the context.
+- Do not invent or infer dates.
+- Set confidence between 0.5 (vague date) and 1.0 (precise confirmed date).
+- Set is_online to true only if the event is explicitly described as virtual/online.
+"""
+
+
+def is_event_query(prompt: str) -> bool:
+    """Detects whether the user is searching for events.
+
+    Checks for event-related keywords in the prompt. Results in the event
+    extraction pipeline being used instead of the standard answer pipeline.
+
+    Args:
+        prompt (str): The user's raw query.
+
+    Returns:
+        bool: True if the query is about events.
+    """
+    event_keywords = {
+        "event", "events", "conference", "summit", "meetup", "hackathon",
+        "workshop", "seminar", "forum", "expo", "congress", "webinar",
+        "festival", "bootcamp", "upcoming", "schedule", "agenda",
+    }
+    words = set(prompt.lower().split())
+    return bool(words & event_keywords)
+
+
+def extract_events(context: str, prompt: str) -> dict:
+    """Calls NVIDIA NIM in JSON mode to extract structured event data from context.
+
+    Unlike call_llm(), this function is non-streaming — it waits for the full
+    response so it can parse and validate the JSON payload.
+
+    Args:
+        context (str): The assembled web context (from build_context_from_crawl).
+        prompt (str): The original user query.
+
+    Returns:
+        dict: Parsed JSON with an "events" key containing a list of event objects.
+              Returns {"events": [], "error": "..."} on parse failure.
+    """
+    if not NVIDIA_API_KEY:
+        return {"events": [], "error": "NVIDIA_API_KEY is not set."}
+
+    messages = [
+        {"role": "system", "content": event_system_prompt},
+        {"role": "user", "content": f"Context:\n{context}\n\nQuery: {prompt}"},
+    ]
+
+    client = OpenAI(
+        base_url="https://integrate.api.nvidia.com/v1",
+        api_key=NVIDIA_API_KEY,
+    )
+
+    try:
+        response = client.chat.completions.create(
+            model=NVIDIA_MODEL,
+            messages=messages,
+            temperature=0.1,    # low temperature — we want deterministic JSON
+            top_p=0.7,
+            max_tokens=2048,    # events list can be long
+            stream=False,       # must be False — we need the complete JSON
+        )
+        raw = response.choices[0].message.content.strip()
+        print(f"Event extractor raw response: {raw[:300]}")
+
+        # Strip accidental markdown code fences if the model adds them
+        if raw.startswith("```"):
+            raw = raw.split("```")[1]
+            if raw.startswith("json"):
+                raw = raw[4:]
+
+        return json.loads(raw)
+
+    except json.JSONDecodeError as e:
+        print(f"JSON parse error in event extraction: {e}")
+        return {"events": [], "error": f"Model returned invalid JSON: {e}"}
+    except Exception as e:
+        print(f"Event extraction API error: {e}")
+        return {"events": [], "error": str(e)}
+
+
+def render_events(events_data: dict) -> None:
+    """Renders extracted events as Streamlit cards with a JSON download button.
+
+    Args:
+        events_data (dict): Parsed event payload with an "events" key.
+    """
+    events = events_data.get("events", [])
+    error = events_data.get("error")
+
+    if error:
+        st.error(f"⚠️ Extraction error: {error}")
+
+    if not events:
+        st.info("No events with confirmed dates were found in the search results.")
+        return
+
+    st.success(f"Found **{len(events)}** event(s)")
+
+    for ev in events:
+        title = ev.get("title", "Untitled Event")
+        starts = ev.get("starts_at_raw", "Date unknown")
+        ends = ev.get("ends_at_raw")
+        location = ev.get("location_raw") or ev.get("city") or "Location unknown"
+        description = ev.get("description", "")
+        url = ev.get("url", "")
+        tags = ev.get("tags", [])
+        is_online = ev.get("is_online", False)
+        confidence = ev.get("confidence", 0)
+
+        with st.container(border=True):
+            col1, col2 = st.columns([3, 1])
+            with col1:
+                st.markdown(f"### {title}")
+                date_str = f"📅 {starts}"
+                if ends:
+                    date_str += f" → {ends}"
+                st.markdown(date_str)
+                st.markdown(f"📍 {'🌐 Online' if is_online else location}")
+            with col2:
+                st.metric("Confidence", f"{confidence:.0%}")
+
+            if description:
+                st.markdown(description)
+            if tags:
+                st.markdown(" ".join(f"`{t}`" for t in tags))
+            if url:
+                st.markdown(f"[🔗 Event page]({url})")
+
+    # Raw JSON download — for downstream consumption
+    with st.expander("⬇️ Raw JSON (for downstream use)"):
+        json_str = json.dumps(events_data, indent=2, ensure_ascii=False)
+        st.code(json_str, language="json")
+        st.download_button(
+            label="Download events.json",
+            data=json_str,
+            file_name="events.json",
+            mime="application/json",
+        )
+
 
 def call_llm(prompt: str, with_context: bool = True, context: str | None = None):
     """Calls the NVIDIA NIM cloud LLM via OpenAI-compatible API.
@@ -373,10 +540,17 @@ async def run():
 
             print(f"Context assembled from {len(sources)} crawled sources")
 
-            llm_response = call_llm(context=context, prompt=prompt, with_context=True)
-            st.write_stream(llm_response)
+            if is_event_query(prompt):
+                # ── Event mode: structured JSON extraction ─────────────────
+                with st.spinner("📅 Extracting events..."):
+                    events_data = extract_events(context=context, prompt=prompt)
+                render_events(events_data)
+            else:
+                # ── Standard mode: streaming natural-language answer ────────
+                llm_response = call_llm(context=context, prompt=prompt, with_context=True)
+                st.write_stream(llm_response)
 
-            # Show sources at the bottom
+            # Show sources at the bottom (both modes)
             if sources:
                 with st.expander("📚 Sources"):
                     for src in sources:
