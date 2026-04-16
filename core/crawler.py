@@ -71,7 +71,19 @@ async def crawl_webpages(urls: list[str], prompt: str) -> list[CrawlResult]:
         ),
         page_timeout=30000,
     )
-    browser_config = BrowserConfig(headless=True, text_mode=False, light_mode=True)
+    browser_config = BrowserConfig(
+        headless=True, 
+        text_mode=False, 
+        light_mode=True,
+        extra_args=[
+            "--disable-gpu",
+            "--disable-dev-shm-usage",
+            "--no-sandbox",
+            "--disable-extensions",
+            "--blink-settings=imagesEnabled=false",
+            "--disable-features=IsolateOrigins,site-per-process"
+        ]
+    )
 
     async with AsyncWebCrawler(config=browser_config) as crawler:
         results = await crawler.arun_many(urls, config=crawler_config)

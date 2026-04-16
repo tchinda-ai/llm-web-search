@@ -57,10 +57,15 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: llm-web-search-api
-    command: ["python", "api.py"]
+    deploy:
+      replicas: 2
+      resources:
+        limits:
+          cpus: "2"
+          memory: 3G
+    command: ["gunicorn", "--bind", "0.0.0.0:5005", "--workers", "2", "--threads", "4", "--timeout", "120", "api:flask_app"]
     ports:
-      - "5005:5005"
+      - "5005-5006:5005"
     env_file:
       - .env
     environment:

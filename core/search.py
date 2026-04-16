@@ -6,6 +6,8 @@ so each client (Streamlit, Flask, CLI…) can handle them appropriately.
 """
 
 import json
+import random
+import time
 import urllib.parse
 import urllib.request
 from datetime import datetime
@@ -91,6 +93,10 @@ def get_web_urls(search_term: str, num_results: int = 10) -> tuple[list[str], st
         })
         req_url = f"{SEARXNG_URL}/search?{params}"
         print(f"Querying SearXNG: {req_url}")
+
+        # Throttling Safety: Random jitter (100ms - 1200ms) prevents "8-at-exact-same-millisecond"
+        # bursts which usually trigger bot-detection/IP-suspensions upstream (e.g. Brave, Google)
+        time.sleep(random.uniform(0.1, 1.2))
 
         req = urllib.request.Request(req_url, headers={"User-Agent": "llm-web-search/1.0"})
         with urllib.request.urlopen(req, timeout=15) as resp:
