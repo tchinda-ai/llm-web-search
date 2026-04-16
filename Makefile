@@ -1,6 +1,6 @@
 SHELL :=/bin/bash
 
-.PHONY: clean check setup docker-up docker-down docker-logs
+.PHONY: clean check setup run api-run docker-up docker-down docker-logs
 .DEFAULT_GOAL=help
 VENV_DIR = .venv
 PYTHON_VERSION = python3.11
@@ -19,8 +19,11 @@ clean: # Clean temporary files
 	@rm -rf build dist
 	@find . -name '*.egg-info' -type d -exec rm -r {} +
 
-run: # Run the application
+run: # Run the Streamlit UI (requires activated venv)
 	@streamlit run app.py
+
+api-run: # Run the Flask REST API on :5005 (requires activated venv)
+	@python api.py
 
 setup: # Initial project setup
 	@echo "Creating virtual env at: $(VENV_DIR)"

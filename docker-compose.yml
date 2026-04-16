@@ -1,7 +1,6 @@
 services:
 
   # ── SearXNG — self-hosted meta search engine ───────────────────────────────
-  # Queries Google, Bing, Brave, DDG — no API keys, no rate limits.
   searxng:
     image: searxng/searxng:latest
     container_name: searxng
@@ -19,20 +18,56 @@ services:
       start_period: 15s
     restart: unless-stopped
 
-  # ── Streamlit application ──────────────────────────────────────────────────
-  # LLM inference is handled by NVIDIA NIM cloud API — no local GPU/model needed.
+  # ── Streamlit UI ───────────────────────────────────────────────────────────
+  # Same image as the API service — different command, different port.
   app:
     build:
       context: .
       dockerfile: Dockerfile
     container_name: llm-web-search
+    command: ["streamlit", "run", "app.py",
+              "--server.port=8501",
+              "--server.address=0.0.0.0"]
     ports:
       - "8501:8501"
     env_file:
-      - .env                          # NVIDIA_API_KEY and NVIDIA_MODEL live here
+      - .env
     environment:
       - SEARXNG_URL=http://searxng:8080
       - ANONYMIZED_TELEMETRY=False
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8501/_stcore/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+    depends_on:
+      searxng:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # ── Flask REST API ─────────────────────────────────────────────────────────
+  # Same image as the Streamlit app — shares the same core/ business logic.
+  # app.py and api.py never import from each other.
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: llm-web-search-api
+    command: ["python", "api.py"]
+    ports:
+      - "5005:5005"
+    env_file:
+      - .env
+    environment:
+      - SEARXNG_URL=http://searxng:8080
+      - ANONYMIZED_TELEMETRY=False
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5005/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
     depends_on:
       searxng:
         condition: service_healthy

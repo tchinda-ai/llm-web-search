@@ -130,6 +130,7 @@ searxng starts (parallel) → healthy
 |---|---|---|---|
 | `searxng` | `searxng/searxng:latest` | Self-hosted meta-search engine (JSON API) | `8080` |
 | `llm-web-search` | Custom (`Dockerfile`) | Streamlit pipeline orchestrator | `8501` |
+| `llm-web-search-api`| Custom (`Dockerfile`) | Flask REST API (JSON/SSE) | `5005` |
 
 ### `feature/local-llm` — 4 services
 
@@ -340,4 +341,46 @@ NVIDIA NIM exposes an OpenAI-compatible REST API (`/v1/chat/completions`). Using
 └── requirements/
     ├── requirements.txt      # Runtime dependencies
     └── requirements-dev.txt  # Linting (ruff)
+```
+
+---
+
+## ⚡️ API Usage
+
+The Flask REST API runs on port **5005** and provides both synchronous and streaming endpoints.
+
+### 1. Health Check
+```sh
+curl http://localhost:5005/health
+```
+
+### 2. Standard Query (Synchronous)
+```sh
+curl -X POST http://localhost:5005/ask \
+  -H "Content-Type: application/json" \
+  -d '{
+    "prompt": "top fintech companies in Cameroon",
+    "web_search": true
+  }'
+```
+
+### 3. Event Extraction (JSON)
+If the query is detected as an event search, it returns structured JSON matching the event schema.
+```sh
+curl -X POST http://localhost:5005/ask \
+  -H "Content-Type: application/json" \
+  -d '{
+    "prompt": "upcoming tech conferences in Africa 2026",
+    "web_search": true
+  }'
+```
+
+### 4. Streaming Answer (SSE)
+```sh
+curl -N -X POST http://localhost:5005/ask/stream \
+  -H "Content-Type: application/json" \
+  -d '{
+    "prompt": "explain blockchain",
+    "web_search": false
+  }'
 ```
