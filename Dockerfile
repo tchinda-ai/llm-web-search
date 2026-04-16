@@ -1,8 +1,26 @@
 # ── Base image: official Python 3.11 slim ────────────────────────────────────
 FROM python:3.11-slim
 
-# System dependencies required by crawl4ai / Playwright (Chromium)
-RUN apt-get update && apt-get install -y --no-install-recommends \
+# Prevent Python from writing .pyc files & buffer output
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
+
+# Define where Playwright should store its browsers (system-wide)
+ENV PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
+
+# Create a non-root user & group with a valid home directory
+RUN addgroup --system appgroup && \
+    adduser --system --group --home /home/appuser appuser && \
+    mkdir -p /home/appuser && \
+    chown -R appuser:appgroup /home/appuser
+
+# Enable APT caching in BuildKit
+RUN rm -f /etc/apt/apt.conf.d/docker-clean; echo 'Binary::apt::APT::Keep-Downloaded-Packages "true";' > /etc/apt/apt.conf.d/keep-cache
+
+# System dependencies required by crawl4ai / Playwright
+RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,target=/var/lib/apt,sharing=locked \
+    apt-get update && apt-get install -y --no-install-recommends \
         curl \
         git \
         build-essential \
@@ -21,26 +39,26 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         libxshmfence1 \
         libxfixes3 \
         libatspi2.0-0 \
-        fonts-liberation \
-    && rm -rf /var/lib/apt/lists/*
+        fonts-liberation
 
 WORKDIR /app
 
-# Install Python dependencies first (better layer caching)
+# Directories ownership for the non-root user
+RUN mkdir -p /app /ms-playwright && chown -R appuser:appgroup /app /ms-playwright
+
+# Install Python dependencies (Using BuildKit cache to speed up pip installs)
 COPY requirements/requirements.txt requirements/requirements-dev.txt ./requirements/
-RUN pip install --no-cache-dir \
-        -r requirements/requirements.txt \
-        -r requirements/requirements-dev.txt
+RUN --mount=type=cache,target=/root/.cache/pip \
+    pip install -r requirements/requirements.txt -r requirements/requirements-dev.txt
 
-# Install Playwright browsers (chromium is enough for headless crawling)
-RUN playwright install chromium --with-deps
+# Install Playwright browsers (chromium only) & ensure correct permissions
+RUN playwright install chromium --with-deps && chmod -R 775 /ms-playwright
 
-# Copy application source — both clients + shared core
-COPY core/ ./core/
-COPY app.py api.py ./
+# Downgrade to non-root user BEFORE copying the application code
+USER appuser
 
-# Both ports declared; docker-compose controls which one each service uses
-EXPOSE 8501 5000
+# Copy application source (Changes here will NOT invalidate the Playwright install)
+COPY --chown=appuser:appgroup core/ ./core/
+COPY --chown=appuser:appgroup app.py api.py ./
 
-# No ENTRYPOINT here — each service in docker-compose defines its own command
-# so the same image can run either the Streamlit UI or the Flask REST API.
+EXPOSE 8501 5005
