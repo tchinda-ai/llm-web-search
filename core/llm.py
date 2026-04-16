@@ -18,7 +18,7 @@ from .prompts import event_system_prompt, system_prompt
 _EVENT_KEYWORDS: frozenset[str] = frozenset({
     "event", "events", "conference", "summit", "meetup", "hackathon",
     "workshop", "seminar", "forum", "expo", "congress", "webinar",
-    "festival", "bootcamp", "upcoming", "schedule", "agenda",
+    "festival", "bootcamp", "upcoming", "schedule", "hackaton","agenda","hackatons"
 })
 
 
