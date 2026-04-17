@@ -82,7 +82,9 @@ services:
         condition: service_healthy
     restart: unless-stopped
     networks:
-      - tchinda-ai
+      tchinda-ai:
+        aliases:
+          - global-search-api
 
 networks:
   tchinda-ai:
