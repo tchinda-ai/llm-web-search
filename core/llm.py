@@ -12,7 +12,7 @@ from typing import Generator
 from openai import OpenAI
 
 from .config import NVIDIA_API_KEY, NVIDIA_MODEL
-from .prompts import event_system_prompt, system_prompt
+from .prompts import event_system_prompt, system_prompt, query_expansion_prompt
 
 # Event-related keywords used to detect whether a query targets events.
 _EVENT_KEYWORDS: frozenset[str] = frozenset({
@@ -140,3 +140,47 @@ def extract_events(context: str, prompt: str) -> dict:
     except Exception as exc:
         print(f"Event extraction API error: {exc}")
         return {"events": [], "error": str(exc)}
+
+def generate_search_variants(prompt: str) -> list[str]:
+    """Generates nuanced subcategory search queries based on the user's prompt.
+    
+    Args:
+        prompt (str): The original user query.
+
+    Returns:
+        list[str]: A list of variant search queries. Returns empty list on failure.
+    """
+    if not NVIDIA_API_KEY:
+        return []
+
+    messages = [
+        {"role": "system", "content": query_expansion_prompt},
+        {"role": "user", "content": f"Prompt: {prompt}"},
+    ]
+
+    try:
+        response = _nvidia_client().chat.completions.create(
+            model=NVIDIA_MODEL,
+            messages=messages,
+            temperature=0.3,
+            top_p=0.7,
+            max_tokens=512,
+            stream=False,
+        )
+        raw: str = response.choices[0].message.content.strip()
+        
+        # Strip markdown code fences if present
+        if raw.startswith("```"):
+            raw = raw.split("```")[1]
+            if raw.startswith("json"):
+                raw = raw[4:]
+            raw = raw.strip()
+
+        data = json.loads(raw)
+        variants = data.get("variants", [])
+        print(f"Generated {len(variants)} search variants for '{prompt}': {variants}")
+        return variants
+
+    except Exception as exc:
+        print(f"Query expansion error: {exc}")
+        return []

@@ -127,3 +127,38 @@ def get_web_urls(search_term: str, num_results: int = 10) -> tuple[list[str], st
         raise
     except Exception as exc:
         raise RuntimeError(f"Failed to fetch results from the web: {exc}") from exc
+
+def get_web_urls_multi(queries: list[str], max_results_per_query: int = 5) -> tuple[list[str], str]:
+    """Executes multiple queries against SearXNG and aggregates the results.
+    
+    Args:
+        queries (list[str]): The list of enriched queries to search.
+        max_results_per_query (int): Max URLs to extract per query.
+        
+    Returns:
+        tuple[list[str], str]: Deduplicated list of URLs and aggregated snippet context.
+    """
+    all_urls = []
+    seen_urls = set()
+    all_snippets = []
+    
+    for query in queries:
+        try:
+            urls, snippet = get_web_urls(search_term=query, num_results=max_results_per_query)
+            for url in urls:
+                if url not in seen_urls:
+                    seen_urls.add(url)
+                    all_urls.append(url)
+            if snippet:
+                all_snippets.append(f"--- Results for: {query} ---\n{snippet}")
+        except ValueError:
+            print(f"SearXNG returned no results for query variant: {query}")
+            continue
+        except Exception as exc:
+            print(f"Error fetching variant '{query}': {exc}")
+            continue
+
+    if not all_urls:
+        raise ValueError("SearXNG returned no results for any of the queries.")
+
+    return all_urls, "\n\n".join(all_snippets)

@@ -25,8 +25,8 @@ from flask import Flask, Response, jsonify, request, stream_with_context
 
 from core.config import NVIDIA_API_KEY, NVIDIA_MODEL, SEARXNG_URL
 from core.crawler import build_context_from_crawl, crawl_webpages
-from core.llm import call_llm, extract_events, is_event_query
-from core.search import enrich_query, get_web_urls
+from core.llm import call_llm, extract_events, is_event_query, generate_search_variants
+from core.search import enrich_query, get_web_urls, get_web_urls_multi
 
 flask_app = Flask(__name__)
 
@@ -48,8 +48,10 @@ def _run_pipeline(prompt: str) -> tuple[str, list[str]]:
         ValueError: No results from SearXNG.
         RuntimeError: SearXNG network/timeout error.
     """
-    enriched = enrich_query(prompt)
-    urls, snippet_context = get_web_urls(search_term=enriched)  # may raise
+    variants = generate_search_variants(prompt)
+    all_queries = [prompt] + variants
+    enriched_queries = [enrich_query(q) for q in all_queries]
+    urls, snippet_context = get_web_urls_multi(queries=enriched_queries)  # may raise
     crawl_results = asyncio.run(crawl_webpages(urls=urls, prompt=prompt))
     context, sources = build_context_from_crawl(
         results=crawl_results,

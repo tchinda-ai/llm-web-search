@@ -12,8 +12,8 @@ import streamlit as st
 
 from core.config import NVIDIA_API_KEY, NVIDIA_MODEL
 from core.crawler import build_context_from_crawl, crawl_webpages
-from core.llm import call_llm, extract_events, is_event_query
-from core.search import enrich_query, get_web_urls
+from core.llm import call_llm, extract_events, is_event_query, generate_search_variants
+from core.search import enrich_query, get_web_urls, get_web_urls_multi
 
 
 # ── Streamlit-specific rendering ───────────────────────────────────────────────
@@ -107,12 +107,12 @@ async def run() -> None:
 
     if prompt and go:
         if is_web_search:
-            enriched_query = enrich_query(prompt)
-            if enriched_query != prompt:
-                print(f"Query enriched: '{prompt}' → '{enriched_query}'")
+            variants = generate_search_variants(prompt)
+            all_queries = [prompt] + variants
+            enriched_queries = [enrich_query(q) for q in all_queries]
 
             try:
-                web_urls, snippet_context = get_web_urls(search_term=enriched_query)
+                web_urls, snippet_context = get_web_urls_multi(queries=enriched_queries)
             except ValueError as exc:
                 st.warning(str(exc))
                 st.stop()

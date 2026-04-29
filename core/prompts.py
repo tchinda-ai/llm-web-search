@@ -54,3 +54,11 @@ Rules:
 - Do NOT default vertical to 'Technology'. Analyze the event and assign the most appropriate industry.
 - Set confidence between 0.5 (vague date) and 1.0 (precise confirmed date).
 """
+
+query_expansion_prompt = """
+You are a search query expansion engine. Your task is to take a user's search prompt and generate 3 to 4 nuanced variants focusing on subcategories.
+For example, if the prompt is "upcoming finance events in Cameroon", you should generate variants like "upcoming policies & regulation events in Cameroon", "upcoming banking events in Cameroon", "upcoming fintech events in Cameroon", "upcoming trading events in Cameroon".
+Return a JSON object with a single key "variants" containing a list of strings.
+Do not include the original prompt in the list.
+Respond with valid JSON only — no markdown, no explanation, no code fences.
+"""
