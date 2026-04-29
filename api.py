@@ -51,7 +51,7 @@ def _run_pipeline(prompt: str) -> tuple[str, list[str]]:
     variants = generate_search_variants(prompt)
     all_queries = [prompt] + variants
     enriched_queries = [enrich_query(q) for q in all_queries]
-    urls, snippet_context = get_web_urls_multi(queries=enriched_queries)  # may raise
+    urls, snippet_context = asyncio.run(get_web_urls_multi(queries=enriched_queries))  # may raise
     crawl_results = asyncio.run(crawl_webpages(urls=urls, prompt=prompt))
     context, sources = build_context_from_crawl(
         results=crawl_results,
