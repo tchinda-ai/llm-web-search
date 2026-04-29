@@ -82,21 +82,28 @@ def get_web_urls(search_term: str, num_results: int = 10) -> tuple[list[str], st
         ValueError: If SearXNG returns no results for the query.
         RuntimeError: If the SearXNG request fails (network error, timeout, etc.)
     """
-    discard_domains = ["youtube.com", "britannica.com", "vimeo.com"]
+    discard_domains = [
+        "youtube.com", "britannica.com", "vimeo.com",
+        # Consistently irrelevant to African event queries
+        "rottentomatoes.com", "moviefone.com", "imdb.com",
+        # Consistently timing out on Crawl4AI / geo-blocked
+        "allconferencealert.net", "conferencelists.com",
+        "yesinvestafrica.com",
+    ]
 
     try:
         params = urllib.parse.urlencode({
             "q": search_term,
             "format": "json",
             "language": "en-US",
-            "engines": "google,bing,brave,duckduckgo",
+            "engines": "bing,duckduckgo,google news,wikipedia",
         })
         req_url = f"{SEARXNG_URL}/search?{params}"
         print(f"Querying SearXNG: {req_url}")
 
-        # Throttling Safety: Random jitter (100ms - 1200ms) prevents "8-at-exact-same-millisecond"
-        # bursts which usually trigger bot-detection/IP-suspensions upstream (e.g. Brave, Google)
-        time.sleep(random.uniform(0.1, 1.2))
+        # Throttling Safety: Increased jitter to 2-4 seconds to avoid rate limits
+        # between sequential variant searches.
+        time.sleep(random.uniform(4.0, 8.0))
 
         req = urllib.request.Request(req_url, headers={"User-Agent": "llm-web-search/1.0"})
         with urllib.request.urlopen(req, timeout=15) as resp:
