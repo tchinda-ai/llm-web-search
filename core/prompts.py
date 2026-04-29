@@ -32,16 +32,16 @@ Use EXACTLY this schema for every event object:
   "title": "string",
   "description": "string",
   "url": "string",
-  "starts_at_raw": "ISO8601 datetime or date string",
-  "ends_at_raw": "ISO8601 datetime or date string or null",
-  "is_all_day": false,
-  "vertical": "Technology",
+  "starts_at_raw": "string (ISO8601 datetime e.g., '2026-09-07T08:00:00Z', or date-only 'YYYY-MM-DD' if time is unknown)",
+  "ends_at_raw": "string (ISO8601 datetime, 'YYYY-MM-DD', or null)",
+  "is_all_day": boolean (true if specific times are not stated),
+  "vertical": "string (infer the main industry, e.g., Technology, Finance, Agriculture, Education, Business, Health; do not default to Technology)",
   "tags": ["tag1", "tag2"],
-  "location_raw": "string",
-  "city": "string",
-  "country": "string",
-  "region": "string",
-  "is_online": false,
+  "location_raw": "string (the venue name or online platform exactly as written; do not add city/country here)",
+  "city": "string or null (extract only if explicitly stated; DO NOT default to Yaoundé or Cameroon)",
+  "country": "string or null (extract only if explicitly stated; DO NOT default to Cameroon)",
+  "region": "string or null",
+  "is_online": boolean (true only if explicitly virtual/online),
   "confidence": 0.95
 }
 
@@ -49,6 +49,8 @@ Rules:
 - Never omit 'title' or 'starts_at_raw'.
 - Only include events whose date is explicitly stated in the context.
 - Do not invent or infer dates.
+- Do NOT invent or guess times. If the source only provides a date without a specific time, use the YYYY-MM-DD format (e.g., '2026-09-07') for starts_at_raw and ends_at_raw, and set is_all_day to true.
+- Do NOT default or guess the country or city. Leave them as null if they are not explicitly mentioned in the text.
+- Do NOT default vertical to 'Technology'. Analyze the event and assign the most appropriate industry.
 - Set confidence between 0.5 (vague date) and 1.0 (precise confirmed date).
-- Set is_online to true only if the event is explicitly described as virtual/online.
 """

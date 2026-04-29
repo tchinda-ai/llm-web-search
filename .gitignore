@@ -173,7 +173,6 @@ poetry.toml
 # ruff
 .ruff_cache/
 
-# LSP config files
 pyrightconfig.json
 
 # End of https://www.toptal.com/developers/gitignore/api/python
@@ -181,3 +180,4 @@ pyrightconfig.json
 #graphify
 /graphify-out/.graphify_*
 /graphify-out/cache
+/graphify-out/graph.html
