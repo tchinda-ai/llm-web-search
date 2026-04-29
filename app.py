@@ -112,7 +112,7 @@ async def run() -> None:
             enriched_queries = [enrich_query(q) for q in all_queries]
 
             try:
-                web_urls, snippet_context = await get_web_urls_multi(queries=enriched_queries)
+                web_urls, snippet_context = get_web_urls_multi(queries=enriched_queries)
             except ValueError as exc:
                 st.warning(str(exc))
                 st.stop()

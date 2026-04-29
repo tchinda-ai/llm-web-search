@@ -5,16 +5,14 @@ No UI framework imports. Errors are raised as standard Python exceptions
 so each client (Streamlit, Flask, CLI…) can handle them appropriately.
 """
 
-import asyncio
 import json
 import random
 import time
 import urllib.parse
+import urllib.request
 from datetime import datetime
 from urllib.parse import urlparse
 from urllib.robotparser import RobotFileParser
-
-import aiohttp
 
 from .config import SEARXNG_URL
 
@@ -41,8 +39,16 @@ def enrich_query(prompt: str) -> str:
     return prompt
 
 
-def _check_robots_txt_sync(urls: list[str]) -> list[str]:
-    """Filters URLs that disallow crawling according to their robots.txt (Synchronous)."""
+def check_robots_txt(urls: list[str]) -> list[str]:
+    """Filters URLs that disallow crawling according to their robots.txt.
+
+    Args:
+        urls (list[str]): Candidate URLs.
+
+    Returns:
+        list[str]: Subset of URLs that are allowed to be crawled.
+            If robots.txt is missing or unreadable, the URL is assumed allowed.
+    """
     allowed: list[str] = []
     for url in urls:
         try:
@@ -56,13 +62,26 @@ def _check_robots_txt_sync(urls: list[str]) -> list[str]:
     return allowed
 
 
-async def check_robots_txt(urls: list[str]) -> list[str]:
-    """Asynchronous wrapper around robots.txt checker."""
-    return await asyncio.to_thread(_check_robots_txt_sync, urls)
+def get_web_urls(search_term: str, num_results: int = 10) -> tuple[list[str], str]:
+    """Searches SearXNG and returns crawlable URLs plus a snippet context string.
 
+    The snippet context is a lightweight pre-formatted text block built from
+    SearXNG result titles and summaries — it can be used directly as a fast
+    context layer without needing to crawl any full pages.
 
-async def get_web_urls(search_term: str, session: aiohttp.ClientSession, num_results: int = 10) -> tuple[list[str], str]:
-    """Searches SearXNG and returns crawlable URLs plus a snippet context string."""
+    Args:
+        search_term (str): The (possibly enriched) search query.
+        num_results (int): Maximum number of results to return. Defaults to 10.
+
+    Returns:
+        tuple[list[str], str]:
+            - List of robots.txt-allowed URLs
+            - Pre-formatted snippet context string
+
+    Raises:
+        ValueError: If SearXNG returns no results for the query.
+        RuntimeError: If the SearXNG request fails (network error, timeout, etc.)
+    """
     discard_domains = ["youtube.com", "britannica.com", "vimeo.com"]
 
     try:
@@ -75,12 +94,13 @@ async def get_web_urls(search_term: str, session: aiohttp.ClientSession, num_res
         req_url = f"{SEARXNG_URL}/search?{params}"
         print(f"Querying SearXNG: {req_url}")
 
-        # Throttling Safety: Random jitter (100ms - 1200ms)
-        await asyncio.sleep(random.uniform(0.1, 1.2))
+        # Throttling Safety: Random jitter (100ms - 1200ms) prevents "8-at-exact-same-millisecond"
+        # bursts which usually trigger bot-detection/IP-suspensions upstream (e.g. Brave, Google)
+        time.sleep(random.uniform(0.1, 1.2))
 
-        async with session.get(req_url, headers={"User-Agent": "llm-web-search/1.0"}, timeout=15) as resp:
-            resp.raise_for_status()
-            data = await resp.json()
+        req = urllib.request.Request(req_url, headers={"User-Agent": "llm-web-search/1.0"})
+        with urllib.request.urlopen(req, timeout=15) as resp:
+            data = json.loads(resp.read().decode())
 
         raw_results = [
             r for r in data.get("results", [])
@@ -91,8 +111,9 @@ async def get_web_urls(search_term: str, session: aiohttp.ClientSession, num_res
             raise ValueError("SearXNG returned no results for this query. Try rephrasing.")
 
         urls = [r["url"] for r in raw_results]
-        print(f"Found {len(urls)} URLs from SearXNG for query: {search_term}")
+        print(f"Found {len(urls)} URLs from SearXNG")
 
+        # Build snippet context: used as a fast first-pass context layer.
         snippet_parts = [
             f"[Source: {r['url']}]\n**{r.get('title', '')}**\n{r.get('content', '')}"
             for r in raw_results
@@ -100,8 +121,7 @@ async def get_web_urls(search_term: str, session: aiohttp.ClientSession, num_res
         ]
         snippet_context = "\n\n".join(snippet_parts)
 
-        allowed_urls = await check_robots_txt(urls)
-        return allowed_urls, snippet_context
+        return check_robots_txt(urls), snippet_context
 
     except ValueError:
         raise
@@ -109,37 +129,35 @@ async def get_web_urls(search_term: str, session: aiohttp.ClientSession, num_res
         raise RuntimeError(f"Failed to fetch results from the web: {exc}") from exc
 
 
-async def get_web_urls_multi(queries: list[str], max_results_per_query: int = 5) -> tuple[list[str], str]:
-    """Executes multiple queries against SearXNG concurrently and aggregates the results."""
+def get_web_urls_multi(queries: list[str], max_results_per_query: int = 5) -> tuple[list[str], str]:
+    """Executes multiple queries against SearXNG and aggregates the results.
+    
+    Args:
+        queries (list[str]): The list of enriched queries to search.
+        max_results_per_query (int): Max URLs to extract per query.
+        
+    Returns:
+        tuple[list[str], str]: Deduplicated list of URLs and aggregated snippet context.
+    """
     all_urls = []
     seen_urls = set()
     all_snippets = []
     
-    semaphore = asyncio.Semaphore(3)
-
-    async def fetch(query: str, session: aiohttp.ClientSession):
-        async with semaphore:
-            try:
-                urls, snippet = await get_web_urls(search_term=query, session=session, num_results=max_results_per_query)
-                return query, urls, snippet
-            except ValueError:
-                print(f"SearXNG returned no results for query variant: {query}")
-                return query, [], ""
-            except Exception as exc:
-                print(f"Error fetching variant '{query}': {exc}")
-                return query, [], ""
-
-    async with aiohttp.ClientSession() as session:
-        tasks = [fetch(q, session) for q in queries]
-        results = await asyncio.gather(*tasks)
-
-    for query, urls, snippet in results:
-        for url in urls:
-            if url not in seen_urls:
-                seen_urls.add(url)
-                all_urls.append(url)
-        if snippet:
-            all_snippets.append(f"--- Results for: {query} ---\n{snippet}")
+    for query in queries:
+        try:
+            urls, snippet = get_web_urls(search_term=query, num_results=max_results_per_query)
+            for url in urls:
+                if url not in seen_urls:
+                    seen_urls.add(url)
+                    all_urls.append(url)
+            if snippet:
+                all_snippets.append(f"--- Results for: {query} ---\n{snippet}")
+        except ValueError:
+            print(f"SearXNG returned no results for query variant: {query}")
+            continue
+        except Exception as exc:
+            print(f"Error fetching variant '{query}': {exc}")
+            continue
 
     if not all_urls:
         raise ValueError("SearXNG returned no results for any of the queries.")
