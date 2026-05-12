@@ -30,7 +30,7 @@ Respond with valid JSON only — no markdown, no explanation, no code fences.
 Use EXACTLY this schema for every event object:
 {
   "title": "string",
-  "description": "string",
+  "description": "string (A detailed, professional summary of the event including key themes, main topics, target audience, and any notable speakers or highlights mentioned in the source. Aim for 2-3 comprehensive sentences.)",
   "url": "string",
   "starts_at_raw": "string (ISO8601 datetime e.g., '2026-09-07T08:00:00Z', or date-only 'YYYY-MM-DD' if time is unknown)",
   "ends_at_raw": "string (ISO8601 datetime, 'YYYY-MM-DD', or null)",
@@ -52,6 +52,7 @@ Rules:
 - Do NOT invent or guess times. If the source only provides a date without a specific time, use the YYYY-MM-DD format (e.g., '2026-09-07') for starts_at_raw and ends_at_raw, and set is_all_day to true.
 - Do NOT default or guess the country or city. Leave them as null if they are not explicitly mentioned in the text.
 - Do NOT default vertical to 'Technology'. Analyze the event and assign the most appropriate industry.
+- Provide RICH descriptions. Avoid short phrases like "an international conference". Instead, explain exactly what the event covers, the target audience, and key highlights found in the source.
 - Set confidence between 0.5 (vague date) and 1.0 (precise confirmed date).
 """
 
