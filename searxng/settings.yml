@@ -11,13 +11,13 @@ search:
     - html
     - json
   default_lang: "en-US"
-  timeout_limit: 8.0
+  timeout_limit: 15.0
 
 engines:
   # Google's HTML structure changes frequently and breaks SearXNG's parser.
-  # Disabled to prevent log spam — Bing, Brave, and DDG cover the same results.
+  # Re-enabled because we now have a proxy to prevent blocking.
   - name: google
-    disabled: true
+    disabled: false
 
   # google_news uses a more stable API endpoint (less prone to breakage)
   - name: google news

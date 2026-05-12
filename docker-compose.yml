@@ -8,6 +8,10 @@ services:
       - ./searxng:/etc/searxng:rw
     environment:
       - SEARXNG_BASE_URL=http://searxng:8080
+      - "SEARXNG_OUTGOING_PROXIES_ALL=[\"${DATA_IMPULSE_PROXY_URL}\"]"
+       # FORCE THE TIMEOUTS HERE
+      - SEARXNG_OUTGOING_REQUEST_TIMEOUT=10.0
+      - SEARXNG_OUTGOING_CONNECT_TIMEOUT=10.0
     ports:
       - "8086:8080"
     healthcheck:
