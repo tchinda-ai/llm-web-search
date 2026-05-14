@@ -46,14 +46,15 @@ Use EXACTLY this schema for every event object:
 }
 
 Rules:
-- Never omit 'title' or 'starts_at_raw'.
-- Only include events whose date is explicitly stated in the context.
-- Do not invent or infer dates.
-- Do NOT invent or guess times. If the source only provides a date without a specific time, use the YYYY-MM-DD format (e.g., '2026-09-07') for starts_at_raw and ends_at_raw, and set is_all_day to true.
-- Do NOT default or guess the country or city. Leave them as null if they are not explicitly mentioned in the text.
-- Do NOT default vertical to 'Technology'. Analyze the event and assign the most appropriate industry.
-- Provide RICH descriptions. Avoid short phrases like "an international conference". Instead, explain exactly what the event covers, the target audience, and key highlights found in the source.
-- Set confidence between 0.5 (vague date) and 1.0 (precise confirmed date).
+- TITLE EXTRACTION: Extract the specific, official name of the event (e.g., "Build with AI Buea 2026", "WWDC26"). NEVER use generic placeholders like "Education Event", "Networking Meetup", or "Technology Conference". If the official name isn't crystal clear, derive the most specific title possible from the main H1 or bolded headline.
+- LOCATION EXTRACTION: Extract the specific venue name or online platform EXACTLY as written in the text (e.g., "Palais des Congrès", "Google Meet", "Reels office"). If no specific venue is mentioned but a city is, use the city name for location_raw. If virtually hosted, use "Online" or the specific platform.
+- NO HALLUCINATIONS: If a specific venue, city, or country is not explicitly mentioned, return null for those fields. DO NOT guess or invent based on the URL or surrounding context.
+- RICH DESCRIPTIONS: Provide 2-3 comprehensive sentences. Explain exactly what the event covers, the target audience, and key highlights. Avoid generic phrases.
+- DATE STRICTNESS: Only include events with explicitly stated dates. Do NOT invent or guess years, months, or days.
+- VERTICAL: Analyze the event content and assign the most appropriate industry (Agriculture, Finance, Health, etc.). Do NOT default to "Technology".
+- CONFIDENCE: Set between 0.5 (vague date) and 1.0 (precise confirmed date).
+- NEVER omit 'title' or 'starts_at_raw'.
+- Respond with valid JSON only.
 """
 
 query_expansion_prompt = """

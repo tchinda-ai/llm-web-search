@@ -130,7 +130,8 @@ def build_context_from_crawl(
                 print(f"No content extracted from {result.url}")
                 continue
 
-        paragraphs = [p.strip() for p in text.split("\n\n") if len(p.strip()) > 80]
+        # Lowered threshold to 20 to ensure event titles are not stripped.
+        paragraphs = [p.strip() for p in text.split("\n\n") if len(p.strip()) > 20]
         for para in paragraphs:
             words = set(para.lower().split())
             overlap = len(words & query_words)
