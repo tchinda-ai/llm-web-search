@@ -30,12 +30,12 @@ Respond with valid JSON only — no markdown, no explanation, no code fences.
 Use EXACTLY this schema for every event object:
 {
   "title": "string ([en] English Title [fr] French Title)",
-  "description": "string (Bilingual summary: [en] Detailed English summary... [fr] Résumé détaillé en Français... Aim for 2-3 sentences per language.)",
+  "description": "string (Bilingual summary: [en] Detailed English summary... [fr] Résumé détaillé en Français... Aim for 2-3 sentences per language. DO NOT include dates or locations in the description.)",
   "url": "string",
   "starts_at_raw": "string (ISO8601 datetime e.g., '2026-09-07T08:00:00Z', or date-only 'YYYY-MM-DD' if time is unknown)",
   "ends_at_raw": "string (ISO8601 datetime, 'YYYY-MM-DD'; if unknown, set to the same value as starts_at_raw)",
   "is_all_day": boolean (true if specific times are not stated),
-  "vertical": "string (infer the main industry, e.g., Technology, Finance, Agriculture, Education, Business, Health; do not default to Technology)",
+  "vertical": "string (infer the main industry: Entrepreneurship, Technology, Finance, Agriculture, Education, Health, ClimateEnvironment, Culture; do not default to Technology)",
   "tags": ["string ([en] Tag [fr] Étiquette)"],
   "location_raw": "string (the venue name or online platform exactly as written; do not add city/country here)",
   "city": "string or null (extract only if explicitly stated; DO NOT default to Yaoundé or Cameroon)",
@@ -51,9 +51,9 @@ Rules:
 - TITLE EXTRACTION: Extract the official name. Format: "[en] English Name [fr] Nom Français". If the name is the same, repeat it with both markers.
 - LOCATION EXTRACTION: Extract the specific venue name or online platform EXACTLY as written in the text.
 - NO HALLUCINATIONS: If a specific venue, city, or country is not explicitly mentioned, return null for those fields.
-- RICH DESCRIPTIONS: Provide 2-3 comprehensive sentences per language. Explain the event content, target audience, and highlights.
+- RICH DESCRIPTIONS: Provide 2-3 comprehensive sentences per language. Explain the event content, target audience, and highlights. DO NOT include dates, times, or location details in the description field.
 - DATE STRICTNESS: Only include events with explicitly stated dates.
-- VERTICAL: Assign the most appropriate industry. Do NOT default to "Technology".
+- VERTICAL: Assign the most appropriate industry from the allowed list (Entrepreneurship, Technology, Finance, Agriculture, Education, Health, ClimateEnvironment, Culture).
 - CONFIDENCE: Set between 0.5 and 1.0.
 - NEVER omit 'title', 'starts_at_raw', or 'ends_at_raw'.
 - Respond with valid JSON only.
