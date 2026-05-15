@@ -29,14 +29,14 @@ Respond with valid JSON only — no markdown, no explanation, no code fences.
 
 Use EXACTLY this schema for every event object:
 {
-  "title": "string",
-  "description": "string (A detailed, professional summary of the event including key themes, main topics, target audience, and any notable speakers or highlights mentioned in the source. Aim for 2-3 comprehensive sentences.)",
+  "title": "string ([en] English Title [fr] French Title)",
+  "description": "string (Bilingual summary: [en] Detailed English summary... [fr] Résumé détaillé en Français... Aim for 2-3 sentences per language.)",
   "url": "string",
   "starts_at_raw": "string (ISO8601 datetime e.g., '2026-09-07T08:00:00Z', or date-only 'YYYY-MM-DD' if time is unknown)",
-  "ends_at_raw": "string (ISO8601 datetime, 'YYYY-MM-DD', or null)",
+  "ends_at_raw": "string (ISO8601 datetime, 'YYYY-MM-DD'; if unknown, set to the same value as starts_at_raw)",
   "is_all_day": boolean (true if specific times are not stated),
   "vertical": "string (infer the main industry, e.g., Technology, Finance, Agriculture, Education, Business, Health; do not default to Technology)",
-  "tags": ["tag1", "tag2"],
+  "tags": ["string ([en] Tag [fr] Étiquette)"],
   "location_raw": "string (the venue name or online platform exactly as written; do not add city/country here)",
   "city": "string or null (extract only if explicitly stated; DO NOT default to Yaoundé or Cameroon)",
   "country": "string or null (extract only if explicitly stated; DO NOT default to Cameroon)",
@@ -46,14 +46,16 @@ Use EXACTLY this schema for every event object:
 }
 
 Rules:
-- TITLE EXTRACTION: Extract the specific, official name of the event (e.g., "Build with AI Buea 2026", "WWDC26"). NEVER use generic placeholders like "Education Event", "Networking Meetup", or "Technology Conference". If the official name isn't crystal clear, derive the most specific title possible from the main H1 or bolded headline.
-- LOCATION EXTRACTION: Extract the specific venue name or online platform EXACTLY as written in the text (e.g., "Palais des Congrès", "Google Meet", "Reels office"). If no specific venue is mentioned but a city is, use the city name for location_raw. If virtually hosted, use "Online" or the specific platform.
-- NO HALLUCINATIONS: If a specific venue, city, or country is not explicitly mentioned, return null for those fields. DO NOT guess or invent based on the URL or surrounding context.
-- RICH DESCRIPTIONS: Provide 2-3 comprehensive sentences. Explain exactly what the event covers, the target audience, and key highlights. Avoid generic phrases.
-- DATE STRICTNESS: Only include events with explicitly stated dates. Do NOT invent or guess years, months, or days.
-- VERTICAL: Analyze the event content and assign the most appropriate industry (Agriculture, Finance, Health, etc.). Do NOT default to "Technology".
-- CONFIDENCE: Set between 0.5 (vague date) and 1.0 (precise confirmed date).
-- NEVER omit 'title' or 'starts_at_raw'.
+- BILINGUAL CONTENT: Title, description, and tags MUST be provided in both English and French. Use [en] for English content and [fr] for French content within the same string (or for each tag).
+- END DATE: If a specific end date is not available, set 'ends_at_raw' to the same value as 'starts_at_raw'. NEVER return null for 'ends_at_raw'.
+- TITLE EXTRACTION: Extract the official name. Format: "[en] English Name [fr] Nom Français". If the name is the same, repeat it with both markers.
+- LOCATION EXTRACTION: Extract the specific venue name or online platform EXACTLY as written in the text.
+- NO HALLUCINATIONS: If a specific venue, city, or country is not explicitly mentioned, return null for those fields.
+- RICH DESCRIPTIONS: Provide 2-3 comprehensive sentences per language. Explain the event content, target audience, and highlights.
+- DATE STRICTNESS: Only include events with explicitly stated dates.
+- VERTICAL: Assign the most appropriate industry. Do NOT default to "Technology".
+- CONFIDENCE: Set between 0.5 and 1.0.
+- NEVER omit 'title', 'starts_at_raw', or 'ends_at_raw'.
 - Respond with valid JSON only.
 """
 
