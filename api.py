@@ -31,6 +31,15 @@ from core.search import enrich_query, get_web_urls, get_web_urls_multi
 flask_app = Flask(__name__)
 
 
+@flask_app.after_request
+def add_security_headers(response):
+    """Injects security hardening headers to prevent clickjacking and session hijacking."""
+    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["Content-Security-Policy"] = "default-src 'self'; frame-ancestors 'none';"
+    return response
+
+
 # ── Helpers ────────────────────────────────────────────────────────────────────
 
 def _run_pipeline(prompt: str) -> tuple[str, list[str]]:
