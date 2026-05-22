@@ -13,6 +13,27 @@ search:
   default_lang: "en-US"
   timeout_limit: 15.0
 
+outgoing:
+  request_timeout: 10.0
+  connect_timeout: 10.0
+  proxies:
+    http:
+      - http://54fbdf522c44f7953be6:cafb6648b70eddf4@gw.dataimpulse.com:823
+    https:
+      - http://54fbdf522c44f7953be6:cafb6648b70eddf4@gw.dataimpulse.com:823
+
+botdetection:
+  ip_lists:
+    pass_ip:
+      - 172.0.0.0/8
+      - 192.168.0.0/16
+      - 10.0.0.0/8
+      - 127.0.0.0/8
+    pass_searxng_org: true
+
+plugins:
+  - tracker_url_remover: false
+
 engines:
   # Google's HTML structure changes frequently and breaks SearXNG's parser.
   # Re-enabled because we now have a proxy to prevent blocking.
