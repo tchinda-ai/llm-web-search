@@ -17,9 +17,7 @@ outgoing:
   request_timeout: 10.0
   connect_timeout: 10.0
   proxies:
-    http:
-      - http://54fbdf522c44f7953be6:cafb6648b70eddf4@gw.dataimpulse.com:823
-    https:
+    "all://":
       - http://54fbdf522c44f7953be6:cafb6648b70eddf4@gw.dataimpulse.com:823
 
 botdetection:
