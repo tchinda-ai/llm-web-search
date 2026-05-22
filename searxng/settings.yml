@@ -31,9 +31,6 @@ botdetection:
       - 127.0.0.0/8
     pass_searxng_org: true
 
-plugins:
-  - tracker_url_remover: false
-
 engines:
   # Google's HTML structure changes frequently and breaks SearXNG's parser.
   # Re-enabled because we now have a proxy to prevent blocking.
