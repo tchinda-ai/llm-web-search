@@ -32,12 +32,9 @@ botdetection:
     pass_searxng_org: true
 
 engines:
-  # Google's HTML structure changes frequently and breaks SearXNG's parser.
-  # Re-enabled because we now have a proxy to prevent blocking.
   - name: google
     disabled: false
 
-  # google_news uses a more stable API endpoint (less prone to breakage)
   - name: google news
     disabled: false
 
@@ -52,3 +49,12 @@ engines:
 
   - name: wikipedia
     disabled: false
+
+  - name: wikidata
+    disabled: true
+
+  - name: ahmia
+    disabled: true
+
+  - name: torch
+    disabled: true
