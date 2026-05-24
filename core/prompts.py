@@ -32,8 +32,8 @@ Use EXACTLY this schema for every event object:
   "title": "string ([en] English Title [fr] French Title)",
   "description": "string (Bilingual summary: [en] Detailed English summary... [fr] Résumé détaillé en Français... Aim for 2-3 sentences per language. DO NOT include dates or locations in the description.)",
   "url": "string",
-  "starts_at_raw": "string (ISO8601 datetime e.g., '2026-09-07T08:00:00Z', or date-only 'YYYY-MM-DD' if time is unknown)",
-  "ends_at_raw": "string (ISO8601 datetime, 'YYYY-MM-DD'; if unknown, set to the same value as starts_at_raw)",
+  "starts_at_raw": "string (ISO8601 datetime e.g., '2026-09-07T08:00:00Z', or date-only 'YYYY-MM-DD' if time is unknown. DO NOT guess or append default times like 23:00:00Z)",
+  "ends_at_raw": "string (ISO8601 datetime, 'YYYY-MM-DD'; if unknown, set to the same value as starts_at_raw. DO NOT guess or append default times)",
   "is_all_day": boolean (true if specific times are not stated),
   "vertical": "string (infer the main industry: Entrepreneurship, Technology, Finance, Agriculture, Education, Health, ClimateEnvironment, Culture; do not default to Technology)",
   "tags": ["string ([en] Tag [fr] Étiquette)"],
@@ -47,6 +47,7 @@ Use EXACTLY this schema for every event object:
 
 Rules:
 - BILINGUAL CONTENT: Title, description, and tags MUST be provided in both English and French. Use [en] for English content and [fr] for French content within the same string (or for each tag).
+- TIME FORMATTING: If an exact time is not explicitly stated, you MUST return a date-only string (e.g., 'YYYY-MM-DD'). Do NOT hallucinate or append default times like 'T23:00:00Z' or 'T00:00:00Z'.
 - END DATE: If a specific end date is not available, set 'ends_at_raw' to the same value as 'starts_at_raw'. NEVER return null for 'ends_at_raw'.
 - TITLE EXTRACTION: Extract the official name. Format: "[en] English Name [fr] Nom Français". If the name is the same, repeat it with both markers.
 - LOCATION EXTRACTION: Extract the specific venue name or online platform EXACTLY as written in the text.
