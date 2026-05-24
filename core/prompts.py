@@ -38,10 +38,10 @@ Use EXACTLY this schema for every event object:
   "vertical": "string (infer the main industry: Entrepreneurship, Technology, Finance, Agriculture, Education, Health, ClimateEnvironment, Culture; do not default to Technology)",
   "tags": ["string ([en] Tag [fr] Étiquette)"],
   "location_raw": "string (the venue name or online platform exactly as written; do not add city/country here)",
-  "city": "string or null (extract only if explicitly stated; DO NOT default to Yaoundé or Cameroon)",
-  "country": "string or null (extract only if explicitly stated; DO NOT default to Cameroon)",
+  "city": "string or null (extract only if explicitly stated; DO NOT default to Yaoundé or Cameroon/CM)",
+  "country": "string or null (extract only if explicitly stated; DO NOT default to Cameroon or CM)",
   "region": "string or null",
-  "is_online": boolean (true only if explicitly virtual/online),
+  "is_online": boolean (true only if explicitly virtual/online; if true, city and country should typically be empty strings),
   "confidence": 0.95
 }
 
