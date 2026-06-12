@@ -57,6 +57,7 @@ Rules:
 - VERTICAL: Assign the most appropriate industry from the allowed list (Entrepreneurship, Technology, Finance, Agriculture, Education, Health, ClimateEnvironment, Culture).
 - CONFIDENCE: Set between 0.5 and 1.0.
 - NEVER omit 'title', 'starts_at_raw', or 'ends_at_raw'.
+- JSON ESCAPING: You MUST properly escape all double quotes (\") and newlines (\\n) inside string values. Do NOT use unescaped double quotes inside strings.
 - Respond with valid JSON only.
 """
 

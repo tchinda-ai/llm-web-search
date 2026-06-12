@@ -125,12 +125,18 @@ def extract_events(context: str, prompt: str) -> dict:
         raw: str = response.choices[0].message.content.strip()
         print(f"Event extractor raw ({len(raw)} chars): {raw[:200]}")
 
-        # Strip accidental markdown code fences (some models add them anyway)
-        if raw.startswith("```"):
-            raw = raw.split("```")[1]
-            if raw.startswith("json"):
-                raw = raw[4:]
-            raw = raw.strip()
+        # Robustly extract JSON if wrapped in markdown code fences or conversational text
+        import re
+        json_match = re.search(r'\{.*\}', raw, re.DOTALL)
+        if json_match:
+            raw = json_match.group(0)
+        else:
+            # Fallback if the regex fails (e.g., if there are no braces, though unlikely)
+            if raw.startswith("```"):
+                raw = raw.split("```")[1]
+                if raw.startswith("json"):
+                    raw = raw[4:]
+                raw = raw.strip()
 
         return json.loads(raw)
 
