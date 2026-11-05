@@ -50,6 +50,10 @@ Use EXACTLY this schema for every event object:
 
 Rules:
 - BILINGUAL CONTENT: Title, description, and tags MUST be provided in both English and French. Use [en] for English content and [fr] for French content within the same string (or for each tag).
+- TITLE CANONICALIZATION: Extract ONLY the core official brand name without marketing slogans, themes, edition suffixes, or subtitles (e.g. use "[en] DevFest Douala 2026 [fr] DevFest Douala 2026", NEVER "[en] DevFest Douala 2026 - Create, Secure, Evolve..."). If the event name is a proper noun or unchanged in French, repeat the exact same name under both [en] and [fr].
+- CANONICAL URL: Provide the official event domain or primary organizer registration URL (e.g., "citscm.com", "indabaxcameroon.org", "gdg.community.dev"). Never use generic news blogs or scraper links when the official source is available.
+- MULTI-DAY EVENTS: 'starts_at_raw' MUST be the official opening start date of the entire summit/conference, not an internal sub-track or closing hackathon day.
+- STRICT UPCOMING CHECK: Do NOT extract events that have already taken place. Ensure dates are strictly upcoming.
 - TIME FORMATTING: If an exact time is not explicitly stated, you MUST return a date-only string (e.g., 'YYYY-MM-DD'). Do NOT hallucinate or append default times like 'T23:00:00Z' or 'T00:00:00Z'.
 - END DATE: If a specific end date is not available, set 'ends_at_raw' to the same value as 'starts_at_raw'. NEVER return null for 'ends_at_raw'.
 - TITLE EXTRACTION: Extract the official name. Format: "[en] English Name [fr] Nom Français". If the name is the same, repeat it with both markers.

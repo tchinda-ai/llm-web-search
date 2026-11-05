@@ -138,7 +138,11 @@ def extract_events(context: str, prompt: str) -> dict:
                     raw = raw[4:]
                 raw = raw.strip()
 
-        return json.loads(raw)
+        data = json.loads(raw)
+        events = data.get("events", [])
+        if isinstance(events, list) and len(events) > 1:
+            data["events"] = deduplicate_events(events)
+        return data
 
     except json.JSONDecodeError as exc:
         print(f"JSON parse error: {exc}")
@@ -146,6 +150,36 @@ def extract_events(context: str, prompt: str) -> dict:
     except Exception as exc:
         print(f"Event extraction API error: {exc}")
         return {"events": [], "error": str(exc)}
+
+def deduplicate_events(events: list[dict]) -> list[dict]:
+    """In-memory deduplication of extracted events within a search response.
+    
+    Clusters events by normalized core English title and start month/year.
+    If duplicates exist, preserves the record with the longest description/highest confidence.
+    """
+    seen: dict[str, dict] = {}
+    for ev in events:
+        title = ev.get("title", "")
+        # Extract English part if formatted as [en] ... [fr] ...
+        en_part = title.split("[fr]")[0].replace("[en]", "").strip() if "[en]" in title else title
+        # Strip marketing slogans, themes, or subtitles
+        core_title = en_part.split(" - ")[0].split(" — ")[0].split(":")[0].strip().lower()
+        # Extract YYYY-MM
+        starts_at = ev.get("starts_at_raw", "")
+        month_key = starts_at[:7] if len(starts_at) >= 7 else starts_at
+
+        dedup_key = f"{core_title}|{month_key}"
+
+        if dedup_key not in seen:
+            seen[dedup_key] = ev
+        else:
+            existing = seen[dedup_key]
+            existing_desc_len = len(existing.get("description") or "")
+            new_desc_len = len(ev.get("description") or "")
+            if new_desc_len > existing_desc_len or ev.get("confidence", 0) > existing.get("confidence", 0):
+                seen[dedup_key] = ev
+
+    return list(seen.values())
 
 def generate_search_variants(prompt: str) -> list[str]:
     """Generates nuanced subcategory search queries based on the user's prompt.
