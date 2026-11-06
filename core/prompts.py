@@ -30,7 +30,7 @@ Respond with valid JSON only — no markdown, no explanation, no code fences.
 Use EXACTLY this schema for every event object:
 {
   "title": "string ([en] English Title [fr] French Title)",
-  "description": "string (Bilingual summary: [en] Detailed English summary... [fr] Résumé détaillé en Français... Aim for 2-3 sentences per language. DO NOT include dates or locations in the description.)",
+  "description": "string (Actionable bilingual summary: [en] High-value summary detailing core themes, practical tracks/workshops, and key value for attendees [fr] Résumé à forte valeur ajoutée détaillant les thématiques, ateliers et bénéfices concrets. 2-3 substantive sentences per language. NO DATES, NO TIMES, NO VENUES in description.)",
   "url": "string",
   "starts_at_raw": "string (Local datetime WITHOUT timezone e.g., '2026-09-07T08:00:00', or date-only 'YYYY-MM-DD' if time is unknown. DO NOT append 'Z' or timezone offsets. DO NOT guess or append default times)",
   "ends_at_raw": "string (Local datetime WITHOUT timezone, 'YYYY-MM-DD'; if unknown, set to the same value as starts_at_raw. DO NOT append 'Z' or default times)",
@@ -42,9 +42,9 @@ Use EXACTLY this schema for every event object:
   "country": "string or null (extract only if explicitly stated; DO NOT default to Cameroon or CM)",
   "region": "string or null",
   "is_online": boolean (true only if explicitly virtual/online; if true, city and country should typically be empty strings),
-  "event_target_audience": "string (infer target audience: STUDENTS, GENERAL_PUBLIC, PROFESSIONALS, RESTRICTED_ACCESS; default to GENERAL_PUBLIC)",
-  "event_access_level": "string (infer access level: FREE, PAID_ACCESSIBLE, PREMIUM_CLOSED; default to FREE)",
-  "event_type": "string (infer activity type: JOB_RECRUITMENT, TRAINING, NETWORKING, BUSINESS, LEISURE; default to NETWORKING)",
+  "event_target_audience": "string (MUST be one of: STUDENTS, PROFESSIONALS, RESTRICTED_ACCESS, GENERAL_PUBLIC. Follow the Target Audience Rules)",
+  "event_access_level": "string (MUST be one of: FREE, PAID_ACCESSIBLE, PREMIUM_CLOSED. Follow the Access Level Rules)",
+  "event_type": "string (MUST be one of: TRAINING, BUSINESS, JOB_RECRUITMENT, LEISURE, NETWORKING. Follow the Event Type Rules)",
   "confidence": 0.95
 }
 
@@ -61,7 +61,29 @@ Rules:
 - TITLE EXTRACTION: Extract the official name. Format: "[en] English Name [fr] Nom Français". If the name is the same, repeat it with both markers.
 - LOCATION EXTRACTION: Extract the specific venue name or online platform EXACTLY as written in the text.
 - NO HALLUCINATIONS: If a specific venue, city, or country is not explicitly mentioned, return null for those fields.
-- RICH DESCRIPTIONS: Provide 2-3 comprehensive sentences per language. Explain the event content, target audience, and highlights. DO NOT include dates, times, or location details in the description field.
+- ACTIONABLE, HIGH-VALUE DESCRIPTIONS (NO FUZZY / BOILERPLATE TEXT):
+  * Detail concrete themes, tracks, or tools (e.g. "Agentic AI workflows and system security", "CEMAC digital payments interoperability").
+  * Detail concrete activities (keynote talks, hands-on codelabs, live pitch battles, panel debates).
+  * Detail what participants gain (actionable architectural blueprints, funding connections, practical skills).
+  * FORBIDDEN IN DESCRIPTIONS:
+    - Never write generic filler or tautologies (e.g., "This event is a unique opportunity...", "The conference aims to discuss new ideas...", "It promises to be a historic moment...").
+    - Never include ticket vendor boilerplate (e.g., "Get tickets now", "Check out where to stay", "artist lineup details").
+    - Never include dates, times, or city names inside the description text (dates and locations belong strictly in their dedicated fields).
+- EVENT TYPE CLASSIFICATION RULES:
+  * TRAINING: Hands-on workshops, bootcamps, technical masterclasses, developer conferences with codelabs/tech sessions (e.g. DevFest, IndabaX, tech trainings, certifications), academic tutorials.
+  * BUSINESS: Economic forums, B2B/B2G summits, pitch competitions for funding (e.g. PITCH, startup battles), trade fairs, fintech symposiums (e.g. Safinum), investment roundtables.
+  * JOB_RECRUITMENT: Job fairs, hiring summits, career days, internship matchmaking events.
+  * LEISURE: Cultural festivals, music concerts, city fiestas, comedy nights, entertainment gatherings, sports tournaments (e.g. Douala Fiesta, music festivals, charity shows).
+  * NETWORKING: Pure mixers, afterworks, community meetups, alumni gatherings without a formal training curriculum or business pitching.
+- EVENT TARGET AUDIENCE CLASSIFICATION RULES:
+  * PROFESSIONALS: Tech developers/engineers, corporate executives, entrepreneurs, healthcare practitioners, researchers, fintech specialists.
+  * STUDENTS: University students, recent graduates, academic researchers, beginner youth coders.
+  * RESTRICTED_ACCESS: Closed-door VIP delegations, board members, invitation-only executive summits.
+  * GENERAL_PUBLIC: Open cultural festivals, city holiday celebrations, public charity/music entertainment, community-wide fairs.
+- EVENT ACCESS LEVEL CLASSIFICATION RULES:
+  * FREE: Community-driven meetups (e.g. GDG events), open-access festivals, events explicitly mentioning free registration or free tickets.
+  * PAID_ACCESSIBLE: Commercial industry conferences, professional workshops, summits requiring attendee tickets or paid delegate badges.
+  * PREMIUM_CLOSED: High-cost VIP packages, closed executive roundtables, invitation-only investor dinners.
 - DATE STRICTNESS: Only include events with explicitly stated dates.
 - VERTICAL: Assign the most appropriate industry from the allowed list (Entrepreneurship, Technology, Finance, Agriculture, Education, Health, ClimateEnvironment, Culture).
 - CONFIDENCE: Set between 0.5 and 1.0.
