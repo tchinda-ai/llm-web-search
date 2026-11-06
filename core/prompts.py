@@ -42,7 +42,7 @@ Use EXACTLY this schema for every event object:
   "country": "string or null (extract only if explicitly stated; DO NOT default to Cameroon or CM)",
   "region": "string or null",
   "is_online": boolean (true only if explicitly virtual/online; if true, city and country should typically be empty strings),
-  "event_target_audience": "string (MUST be one of: STUDENTS, PROFESSIONALS, RESTRICTED_ACCESS, GENERAL_PUBLIC. Follow the Target Audience Rules)",
+  "event_target_audience": "string (MUST be one of: STUDENTS, PROFESSIONALS,ENTREPRENEURS, INVESTORS, RESTRICTED_ACCESS, GENERAL_PUBLIC. Follow the Target Audience Rules)",
   "event_access_level": "string (MUST be one of: FREE, PAID_ACCESSIBLE, PREMIUM_CLOSED. Follow the Access Level Rules)",
   "event_type": "string (MUST be one of: TRAINING, BUSINESS, JOB_RECRUITMENT, LEISURE, NETWORKING. Follow the Event Type Rules)",
   "confidence": 0.95
