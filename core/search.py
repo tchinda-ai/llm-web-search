@@ -7,6 +7,7 @@ so each client (Streamlit, Flask, CLI…) can handle them appropriately.
 
 import json
 import random
+import socket
 import time
 import urllib.parse
 import urllib.request
@@ -50,19 +51,24 @@ def check_robots_txt(urls: list[str]) -> list[str]:
             If robots.txt is missing or unreadable, the URL is assumed allowed.
     """
     allowed: list[str] = []
-    for url in urls:
-        try:
-            robots_url = f"{urlparse(url).scheme}://{urlparse(url).netloc}/robots.txt"
-            rp = RobotFileParser(robots_url)
-            rp.read()
-            if rp.can_fetch("*", url):
+    default_timeout = socket.getdefaulttimeout()
+    socket.setdefaulttimeout(3.0)  # fast 3s timeout to prevent hanging on robots.txt
+    try:
+        for url in urls:
+            try:
+                robots_url = f"{urlparse(url).scheme}://{urlparse(url).netloc}/robots.txt"
+                rp = RobotFileParser(robots_url)
+                rp.read()
+                if rp.can_fetch("*", url):
+                    allowed.append(url)
+            except Exception:
                 allowed.append(url)
-        except Exception:
-            allowed.append(url)
+    finally:
+        socket.setdefaulttimeout(default_timeout)
     return allowed
 
 
-def get_web_urls(search_term: str, num_results: int = 10) -> tuple[list[str], str]:
+def get_web_urls(search_term: str, num_results: int = 15) -> tuple[list[str], str]:
     """Searches SearXNG and returns crawlable URLs plus a snippet context string.
 
     The snippet context is a lightweight pre-formatted text block built from
@@ -71,7 +77,7 @@ def get_web_urls(search_term: str, num_results: int = 10) -> tuple[list[str], st
 
     Args:
         search_term (str): The (possibly enriched) search query.
-        num_results (int): Maximum number of results to return. Defaults to 10.
+        num_results (int): Maximum number of results to return. Defaults to 15.
 
     Returns:
         tuple[list[str], str]:
@@ -95,15 +101,14 @@ def get_web_urls(search_term: str, num_results: int = 10) -> tuple[list[str], st
         params = urllib.parse.urlencode({
             "q": search_term,
             "format": "json",
-            "language": "en-US",
-            "engines": "bing,duckduckgo,google news,wikipedia",
+            "language": "all",
+            "engines": "google,brave,bing,duckduckgo,google news",
         })
         req_url = f"{SEARXNG_URL}/search?{params}"
         print(f"Querying SearXNG: {req_url}")
 
-        # Throttling Safety: Increased jitter to 2-4 seconds to avoid rate limits
-        # between sequential variant searches.
-        time.sleep(random.uniform(4.0, 8.0))
+        # Throttling Safety: Jitter between sequential searches
+        time.sleep(random.uniform(2.5, 5.0))
 
         req = urllib.request.Request(req_url, headers={"User-Agent": "llm-web-search/1.0"})
         with urllib.request.urlopen(req, timeout=15) as resp:
@@ -136,7 +141,7 @@ def get_web_urls(search_term: str, num_results: int = 10) -> tuple[list[str], st
         raise RuntimeError(f"Failed to fetch results from the web: {exc}") from exc
 
 
-def get_web_urls_multi(queries: list[str], max_results_per_query: int = 5) -> tuple[list[str], str]:
+def get_web_urls_multi(queries: list[str], max_results_per_query: int = 8) -> tuple[list[str], str]:
     """Executes multiple queries against SearXNG and aggregates the results.
     
     Args:

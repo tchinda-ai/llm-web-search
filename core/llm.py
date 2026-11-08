@@ -119,7 +119,7 @@ def extract_events(context: str, prompt: str) -> dict:
             messages=messages,
             temperature=0.1,   # deterministic JSON output
             top_p=0.7,
-            max_tokens=2048,   # allow large event lists
+            max_tokens=6144,   # allow large event lists without mid-stream JSON truncation
             stream=False,      # must be synchronous — we parse the full response
         )
         raw: str = response.choices[0].message.content.strip()

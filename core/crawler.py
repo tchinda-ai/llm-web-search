@@ -64,7 +64,7 @@ async def crawl_webpages(urls: list[str], prompt: str) -> list[CrawlResult]:
         keep_data_attributes=False,
         cache_mode=CacheMode.BYPASS,
         remove_overlay_elements=True,
-        word_count_threshold=30,
+        word_count_threshold=15,
         user_agent=(
             "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
             "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/132.0.0.0 Safari/537.36"
@@ -95,7 +95,7 @@ def build_context_from_crawl(
     results: list[CrawlResult],
     prompt: str,
     snippet_context: str = "",
-    max_chars: int = 6000,
+    max_chars: int = 28000,
 ) -> tuple[str, list[str]]:
     """Assembles a ranked context string directly from crawl results.
 
@@ -107,7 +107,7 @@ def build_context_from_crawl(
         results (list[CrawlResult]): Output of crawl_webpages().
         prompt (str): Original user query (drives keyword scoring).
         snippet_context (str): Pre-formatted SearXNG snippet block to prepend.
-        max_chars (int): Hard cap on total context length. Defaults to 6000.
+        max_chars (int): Hard cap on total context length. Defaults to 28000.
 
     Returns:
         tuple[str, list[str]]:
@@ -130,8 +130,8 @@ def build_context_from_crawl(
                 print(f"No content extracted from {result.url}")
                 continue
 
-        # Lowered threshold to 20 to ensure event titles are not stripped.
-        paragraphs = [p.strip() for p in text.split("\n\n") if len(p.strip()) > 20]
+        # Threshold of 15 ensures event badges and titles are not stripped.
+        paragraphs = [p.strip() for p in text.split("\n\n") if len(p.strip()) > 15]
         for para in paragraphs:
             words = set(para.lower().split())
             overlap = len(words & query_words)

@@ -93,8 +93,33 @@ Rules:
 """
 
 query_expansion_prompt = """
-You are a search query expansion engine. Your task is to take a user's search prompt and generate 3 to 4 nuanced variants focusing on subcategories.
-For example, if the prompt is "upcoming finance events in Cameroon", you should generate variants like "upcoming policies & regulation events in Cameroon", "upcoming banking events in Cameroon", "upcoming fintech events in Cameroon", "upcoming trading events in Cameroon".
+You are a bilingual search query expansion engine specialized in Central African and Cameroonian events.
+Your task is to take a user's search prompt and generate 4 diverse, high-yield search query variants.
+
+Requirements:
+1. BILINGUAL COVERAGE (MANDATORY): Generate BOTH French and English variants (at least 2 in French and 2 in English). In Cameroon, over 70% of professional conferences, salons, forums, festivals, and university events are published in French.
+2. CONCRETE EVENT TYPES: Include terms like "salon", "forum", "conférence", "sommet", "hackathon", "atelier", "festival", "masterclass", "concours".
+3. PLATFORM & ORGANIZER TARGETING: For tech, innovation, and business queries, include platform dorks or community targets when appropriate (e.g. "site:gdg.community.dev", "site:eventbrite.com", "université", "incubateur").
+
+Examples:
+- Prompt: "upcoming technology events in Douala"
+  Variants:
+  [
+    "événements technologiques et intelligence artificielle Douala 2026",
+    "conférence développeurs hackathon codelabs Douala 2026",
+    "developer workshops AI summits Douala 2026",
+    "site:gdg.community.dev Cameroon tech events"
+  ]
+
+- Prompt: "upcoming finance events in Cameroon"
+  Variants:
+  [
+    "salons finance numérique fintech et banques Cameroun 2026",
+    "forum investissement CEMAC Douala Yaoundé 2026",
+    "fintech banking conferences digital inclusion Cameroon 2026",
+    "venture capital startup pitch competitions Cameroon 2026"
+  ]
+
 Return a JSON object with a single key "variants" containing a list of strings.
 Do not include the original prompt in the list.
 Respond with valid JSON only — no markdown, no explanation, no code fences.
