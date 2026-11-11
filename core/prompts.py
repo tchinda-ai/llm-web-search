@@ -42,9 +42,9 @@ Use EXACTLY this schema for every event object:
   "country": "string or null (extract only if explicitly stated; DO NOT default to Cameroon or CM)",
   "region": "string or null",
   "is_online": boolean (true only if explicitly virtual/online; if true, city and country should typically be empty strings),
-  "event_target_audience": "string (MUST be one of: STUDENTS, PROFESSIONALS,ENTREPRENEURS, INVESTORS, RESTRICTED_ACCESS, GENERAL_PUBLIC. Follow the Target Audience Rules)",
+  "event_target_audience": "string (Comma-separated list of applicable audiences. MUST use subset of: STUDENTS, JOB_SEEKERS, EMPLOYEES, ENTREPRENEURS, GENERAL_PUBLIC, RESTRICTED_ACCESS. e.g. 'STUDENTS,EMPLOYEES,ENTREPRENEURS' or 'GENERAL_PUBLIC'. Follow the Target Audience Rules)",
   "event_access_level": "string (MUST be one of: FREE, PAID_ACCESSIBLE, PREMIUM_CLOSED. Follow the Access Level Rules)",
-  "event_type": "string (MUST be one of: TRAINING, BUSINESS, JOB_RECRUITMENT, LEISURE, NETWORKING. Follow the Event Type Rules)",
+  "event_type": "string (Comma-separated list of core value propositions. MUST use subset of: TRAINING, BUSINESS, NETWORKING, JOB_RECRUITMENT, LEISURE. e.g. 'TRAINING,NETWORKING' or 'BUSINESS,NETWORKING'. Follow the Event Type Rules)",
   "confidence": 0.95
 }
 
@@ -69,17 +69,21 @@ Rules:
     - Never write generic filler or tautologies (e.g., "This event is a unique opportunity...", "The conference aims to discuss new ideas...", "It promises to be a historic moment...").
     - Never include ticket vendor boilerplate (e.g., "Get tickets now", "Check out where to stay", "artist lineup details").
     - Never include dates, times, or city names inside the description text (dates and locations belong strictly in their dedicated fields).
-- EVENT TYPE CLASSIFICATION RULES:
-  * TRAINING: Hands-on workshops, bootcamps, technical masterclasses, developer conferences with codelabs/tech sessions (e.g. DevFest, IndabaX, tech trainings, certifications), academic tutorials.
-  * BUSINESS: Economic forums, B2B/B2G summits, pitch competitions for funding (e.g. PITCH, startup battles), trade fairs, fintech symposiums (e.g. Safinum), investment roundtables.
-  * JOB_RECRUITMENT: Job fairs, hiring summits, career days, internship matchmaking events.
-  * LEISURE: Cultural festivals, music concerts, city fiestas, comedy nights, entertainment gatherings, sports tournaments (e.g. Douala Fiesta, music festivals, charity shows).
-  * NETWORKING: Pure mixers, afterworks, community meetups, alumni gatherings without a formal training curriculum or business pitching.
-- EVENT TARGET AUDIENCE CLASSIFICATION RULES:
-  * PROFESSIONALS: Tech developers/engineers, corporate executives, entrepreneurs, healthcare practitioners, researchers, fintech specialists.
-  * STUDENTS: University students, recent graduates, academic researchers, beginner youth coders.
-  * RESTRICTED_ACCESS: Closed-door VIP delegations, board members, invitation-only executive summits.
-  * GENERAL_PUBLIC: Open cultural festivals, city holiday celebrations, public charity/music entertainment, community-wide fairs.
+- EVENT TYPE CLASSIFICATION RULES (MULTI-VALUED, COMMA-SEPARATED):
+  * Assign ALL value propositions that apply to the event, comma-separated (e.g. 'TRAINING,NETWORKING'):
+    - TRAINING: Hands-on workshops, bootcamps, technical masterclasses, developer conferences with codelabs/tech sessions (e.g. DevFest, IndabaX, tech trainings, certifications), academic tutorials.
+    - BUSINESS: Economic forums, B2B/B2G summits, pitch competitions for funding (e.g. PITCH, startup battles), trade fairs, fintech symposiums (e.g. Safinum), investment roundtables.
+    - NETWORKING: Professional gatherings, conferences, summits, mixers, afterworks, community meetups, alumni events where attendees meet peers, employers, or clients. (Note: Almost all major conferences, summits, and meetups offer NETWORKING alongside TRAINING or BUSINESS).
+    - JOB_RECRUITMENT: Job fairs, hiring summits, career days, internship matchmaking events.
+    - LEISURE: Cultural festivals, music concerts, city fiestas, comedy nights, entertainment gatherings, sports tournaments (e.g. Douala Fiesta, music festivals, charity shows).
+- EVENT TARGET AUDIENCE CLASSIFICATION RULES (MULTI-VALUED, COMMA-SEPARATED):
+  * Assign ALL audience groups who legitimately benefit, comma-separated (e.g. 'STUDENTS,EMPLOYEES,ENTREPRENEURS'):
+    - STUDENTS: University students, recent graduates, academic researchers, beginner coders, learners. (Include this for tech conferences, hackathons, and open workshops!).
+    - EMPLOYEES: Tech engineers/developers, corporate workers, healthcare practitioners, domain specialists.
+    - ENTREPRENEURS: Startup founders, small business owners, freelancers, innovators, pitch participants.
+    - JOB_SEEKERS: Candidates looking for work, internships, or industry placement.
+    - GENERAL_PUBLIC: Community-wide events, open cultural festivals, city holiday celebrations, public charity/music entertainment. (If GENERAL_PUBLIC, use ONLY GENERAL_PUBLIC).
+    - RESTRICTED_ACCESS: Closed-door VIP delegations, board members, invitation-only executive summits.
 - EVENT ACCESS LEVEL CLASSIFICATION RULES:
   * FREE: Community-driven meetups (e.g. GDG events), open-access festivals, events explicitly mentioning free registration or free tickets.
   * PAID_ACCESSIBLE: Commercial industry conferences, professional workshops, summits requiring attendee tickets or paid delegate badges.
