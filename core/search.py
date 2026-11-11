@@ -90,6 +90,7 @@ def get_web_urls(search_term: str, num_results: int = 15) -> tuple[list[str], st
     """
     discard_domains = [
         "youtube.com", "britannica.com", "vimeo.com",
+        "support.google.com",
         # Consistently irrelevant to African event queries
         "rottentomatoes.com", "moviefone.com", "imdb.com",
         # Consistently timing out on Crawl4AI / geo-blocked

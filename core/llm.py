@@ -122,7 +122,12 @@ def extract_events(context: str, prompt: str) -> dict:
             max_tokens=6144,   # allow large event lists without mid-stream JSON truncation
             stream=False,      # must be synchronous — we parse the full response
         )
-        raw: str = response.choices[0].message.content.strip()
+        choice = response.choices[0]
+        msg = choice.message
+        raw: str = (msg.content or getattr(msg, "reasoning_content", None) or "").strip()
+        if not raw:
+            print(f"Event extractor warning: Model returned empty content (finish_reason={choice.finish_reason})")
+            return {"events": [], "error": f"Model returned empty content (finish_reason={choice.finish_reason})"}
         print(f"Event extractor raw ({len(raw)} chars): {raw[:200]}")
 
         # Robustly extract JSON if wrapped in markdown code fences or conversational text
@@ -204,13 +209,22 @@ def generate_search_variants(prompt: str) -> list[str]:
             messages=messages,
             temperature=0.3,
             top_p=0.7,
-            max_tokens=512,
+            max_tokens=2048,   # allow reasoning/thinking tokens without truncating output
             stream=False,
         )
-        raw: str = response.choices[0].message.content.strip()
-        
-        # Strip markdown code fences if present
-        if raw.startswith("```"):
+        choice = response.choices[0]
+        msg = choice.message
+        raw: str = (msg.content or getattr(msg, "reasoning_content", None) or "").strip()
+        if not raw:
+            print(f"Query expansion warning: Model returned empty content (finish_reason={choice.finish_reason})")
+            return []
+
+        # Robustly extract JSON if wrapped in markdown code fences or conversational text
+        import re
+        json_match = re.search(r'\{.*\}', raw, re.DOTALL)
+        if json_match:
+            raw = json_match.group(0)
+        elif raw.startswith("```"):
             raw = raw.split("```")[1]
             if raw.startswith("json"):
                 raw = raw[4:]
