@@ -253,11 +253,48 @@ def generate_search_variants(prompt: str) -> list[str]:
                 raw = raw[4:]
             raw = raw.strip()
 
-        data = json.loads(raw)
-        variants = data.get("variants", [])
-        print(f"Generated {len(variants)} search variants for '{prompt}': {variants}")
-        return variants
+        # Clean trailing commas which cause JSON parsing failures
+        cleaned_json = re.sub(r',\s*([\]}])', r'\1', raw)
+
+        raw_variants = []
+        try:
+            data = json.loads(cleaned_json)
+            if isinstance(data, dict):
+                raw_variants = data.get("variants", [])
+            elif isinstance(data, list):
+                raw_variants = data
+        except Exception as json_err:
+            # Fallback regex extraction of quoted strings if JSON has syntax errors
+            print(f"Query expansion JSON parse fallback: {json_err}")
+            raw_variants = re.findall(r'"([^"\n\\]{4,80})"', raw)
+
+        valid_variants = []
+        forbidden_substrings = {"string", "variant", "...", "dummy", "placeholder", "example", "<string"}
+        for v in raw_variants:
+            if not isinstance(v, str):
+                continue
+            v_clean = v.strip().strip('"').strip("'").strip()
+            if len(v_clean) < 4 or not any(c.isalpha() for c in v_clean):
+                continue
+            v_lower = v_clean.lower()
+            if any(bad in v_lower for bad in forbidden_substrings):
+                continue
+            if v_lower == prompt.lower():
+                continue
+            valid_variants.append(v_clean)
+
+        # Fallback to smart keyword variants if model returned placeholders or failed
+        if not valid_variants:
+            clean_prompt = re.sub(r'\b(upcoming|latest|current)\b', '', prompt, flags=re.IGNORECASE).strip()
+            valid_variants = [
+                f"{clean_prompt} schedule 2026",
+                f"{clean_prompt} registration 2026",
+            ]
+
+        print(f"Generated {len(valid_variants)} search variants for '{prompt}': {valid_variants}")
+        return valid_variants
 
     except Exception as exc:
         print(f"Query expansion error: {exc}")
-        return []
+        clean_prompt = re.sub(r'\b(upcoming|latest|current)\b', '', prompt, flags=re.IGNORECASE).strip()
+        return [f"{clean_prompt} schedule 2026", f"{clean_prompt} registration 2026"]

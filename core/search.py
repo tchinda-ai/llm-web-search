@@ -7,6 +7,7 @@ so each client (Streamlit, Flask, CLI…) can handle them appropriately.
 
 import json
 import random
+import re
 import socket
 import time
 import urllib.parse
@@ -96,10 +97,18 @@ def get_web_urls(search_term: str, num_results: int = 15) -> tuple[list[str], st
     discard_domains = [
         "youtube.com", "britannica.com", "vimeo.com",
         "support.google.com",
-        # Consistently irrelevant to African event queries (movie and dictionary spam)
-        "rottentomatoes.com", "moviefone.com", "imdb.com", "fandango.com",
-        "sensacine.com", "warnerbros.com",
+        # Dictionary & Encyclopedia spam
         "merriam-webster.com", "dictionary.com", "cambridge.org", "wiktionary.org", "wikipedia.org",
+        "mochidictionary.net", "soha.vn", "zim.vn",
+        # Non-event media, video & entertainment portals
+        "rottentomatoes.com", "moviefone.com", "imdb.com", "fandango.com",
+        "sensacine.com", "warnerbros.com", "sky.com", "wavy.com", "whro.org",
+        "canaltech.com.br", "techtudo.com.br", "globo.com", "baidu.com",
+        # Generic government / public welfare portals
+        "sssanswers.com", "norfolk.gov", "nrha.us",
+        # Car auctions & non-tech / non-business aggregators
+        "wynnresorts.com", "broadarrowauctions.com",
+        # Low quality aggregators and scrapers
         "theupcoming.co.uk", "upcoming.org", "whats-on.co.uk",
         # Consistently timing out on Crawl4AI / geo-blocked
         "allconferencealert.net", "conferencelists.com",
@@ -107,14 +116,19 @@ def get_web_urls(search_term: str, num_results: int = 15) -> tuple[list[str], st
     ]
 
     try:
+        # Prevent proxy exit-node geo-pollution (e.g. Brazilian, Vietnamese or Russian spam)
+        # by explicitly directing SearXNG to English or French based on query keywords.
+        fr_markers = ["cameroun", "douala", "yaoundé", "bafoussam", "conférence", "atelier", "salons", "développeurs", "formation", "concours"]
+        search_lang = "fr" if any(m in search_term.lower() for m in fr_markers) else "en"
+
         params = urllib.parse.urlencode({
             "q": search_term,
             "format": "json",
-            "language": "all",
+            "language": search_lang,
             "engines": "google,brave,bing,duckduckgo,google news",
         })
         req_url = f"{SEARXNG_URL}/search?{params}"
-        print(f"Querying SearXNG: {req_url}")
+        print(f"Querying SearXNG ({search_lang}): {req_url}")
 
         # Throttling Safety: Jitter between sequential searches
         time.sleep(random.uniform(2.5, 5.0))
@@ -186,6 +200,20 @@ def get_web_urls_multi(queries: list[str], max_results_per_query: int = 8) -> tu
             continue
 
     if not all_urls:
+        # Fallback: if all specific queries failed, try a simplified broad search from the root query
+        if queries:
+            root = queries[0]
+            clean_root = re.sub(r'\b(upcoming|latest|current|online|virtual|202[4-9])\b', '', root, flags=re.IGNORECASE).strip()
+            clean_tokens = [w for w in clean_root.split() if len(w) > 2][:3]
+            fallback_query = " ".join(clean_tokens) + " events 2026"
+            print(f"All query variants returned 0 results. Trying simplified broad fallback: '{fallback_query}'")
+            try:
+                fallback_urls, fallback_snippet = get_web_urls(search_term=fallback_query, num_results=max_results_per_query)
+                if fallback_urls:
+                    return fallback_urls, fallback_snippet
+            except Exception as fb_exc:
+                print(f"Fallback search also failed: {fb_exc}")
+
         raise ValueError("SearXNG returned no results for any of the queries.")
 
     return all_urls, "\n\n".join(all_snippets)
