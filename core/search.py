@@ -19,37 +19,60 @@ from .config import SEARXNG_URL
 
 
 def enrich_query(prompt: str) -> str:
-    """Appends the current year to time-sensitive queries.
+    """Appends the current year to time-sensitive queries only if a year isn't already present.
 
     Ensures search engines return fresh results rather than old pages when
     the user asks about events, news, top lists, etc.
-
-    Args:
-        prompt (str): The original user query.
-
-    Returns:
-        str: The enriched query (unchanged if no time-sensitive keyword found).
     """
+    import re
+    # If the query already has a target year (e.g. 2024, 2025, 2026, 2027), do not append another year!
+    if re.search(r'\b202[4-9]\b', prompt):
+        return prompt
+
     year = datetime.now().year
     time_keywords = [
         "latest", "upcoming", "current", "top", "best", "new",
-        "events", "news", "recently", "this year", "2024", "2025", "2026",
+        "events", "news", "recently", "this year",
     ]
     if any(kw in prompt.lower() for kw in time_keywords):
         return f"{prompt} {year}"
     return prompt
 
 
+def sanitize_url(raw_url: str, discard_domains: list[str]) -> str | None:
+    """Sanitizes raw search URLs, unwrapping Google redirects and dropping spam/malformed URLs."""
+    if not raw_url or not isinstance(raw_url, str):
+        return None
+    raw_url = raw_url.strip()
+    if not (raw_url.startswith("http://") or raw_url.startswith("https://")):
+        return None
+
+    try:
+        parsed = urlparse(raw_url)
+        netloc = parsed.netloc.lower()
+
+        # Reject malformed hostnames (e.g., http:///url, http://url/, or no TLD)
+        if not netloc or netloc in ("url", "localhost") or "." not in netloc:
+            return None
+
+        # Unwrap Google search redirect wrappers (e.g. google.com/url?q=https://real-target.com)
+        if "google." in netloc and parsed.path.startswith("/url"):
+            qs = urllib.parse.parse_qs(parsed.query)
+            target = qs.get("q", qs.get("url", []))
+            if target and target[0].startswith(("http://", "https://")):
+                return sanitize_url(target[0], discard_domains)
+            return None
+
+        if any(d in netloc for d in discard_domains):
+            return None
+
+        return raw_url
+    except Exception:
+        return None
+
+
 def check_robots_txt(urls: list[str]) -> list[str]:
-    """Filters URLs that disallow crawling according to their robots.txt.
-
-    Args:
-        urls (list[str]): Candidate URLs.
-
-    Returns:
-        list[str]: Subset of URLs that are allowed to be crawled.
-            If robots.txt is missing or unreadable, the URL is assumed allowed.
-    """
+    """Filters URLs that disallow crawling according to their robots.txt."""
     allowed: list[str] = []
     default_timeout = socket.getdefaulttimeout()
     socket.setdefaulttimeout(3.0)  # fast 3s timeout to prevent hanging on robots.txt
@@ -69,30 +92,15 @@ def check_robots_txt(urls: list[str]) -> list[str]:
 
 
 def get_web_urls(search_term: str, num_results: int = 15) -> tuple[list[str], str]:
-    """Searches SearXNG and returns crawlable URLs plus a snippet context string.
-
-    The snippet context is a lightweight pre-formatted text block built from
-    SearXNG result titles and summaries — it can be used directly as a fast
-    context layer without needing to crawl any full pages.
-
-    Args:
-        search_term (str): The (possibly enriched) search query.
-        num_results (int): Maximum number of results to return. Defaults to 15.
-
-    Returns:
-        tuple[list[str], str]:
-            - List of robots.txt-allowed URLs
-            - Pre-formatted snippet context string
-
-    Raises:
-        ValueError: If SearXNG returns no results for the query.
-        RuntimeError: If the SearXNG request fails (network error, timeout, etc.)
-    """
+    """Searches SearXNG and returns crawlable URLs plus a snippet context string."""
     discard_domains = [
         "youtube.com", "britannica.com", "vimeo.com",
         "support.google.com",
-        # Consistently irrelevant to African event queries
-        "rottentomatoes.com", "moviefone.com", "imdb.com",
+        # Consistently irrelevant to African event queries (movie and dictionary spam)
+        "rottentomatoes.com", "moviefone.com", "imdb.com", "fandango.com",
+        "sensacine.com", "warnerbros.com",
+        "merriam-webster.com", "dictionary.com", "cambridge.org", "wiktionary.org", "wikipedia.org",
+        "theupcoming.co.uk", "upcoming.org", "whats-on.co.uk",
         # Consistently timing out on Crawl4AI / geo-blocked
         "allconferencealert.net", "conferencelists.com",
         "yesinvestafrica.com",
@@ -115,10 +123,15 @@ def get_web_urls(search_term: str, num_results: int = 15) -> tuple[list[str], st
         with urllib.request.urlopen(req, timeout=15) as resp:
             data = json.loads(resp.read().decode())
 
-        raw_results = [
-            r for r in data.get("results", [])
-            if not any(d in r.get("url", "") for d in discard_domains)
-        ][:num_results]
+        valid_results = []
+        for r in data.get("results", []):
+            clean_url = sanitize_url(r.get("url", ""), discard_domains)
+            if clean_url:
+                r_copy = dict(r)
+                r_copy["url"] = clean_url
+                valid_results.append(r_copy)
+
+        raw_results = valid_results[:num_results]
 
         if not raw_results:
             raise ValueError("SearXNG returned no results for this query. Try rephrasing.")

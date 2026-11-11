@@ -7,6 +7,7 @@ extract_events() returns a plain dict — each client renders it as needed.
 """
 
 import json
+import time
 from typing import Generator
 
 from openai import OpenAI
@@ -42,6 +43,26 @@ def _nvidia_client() -> OpenAI:
         base_url="https://integrate.api.nvidia.com/v1",
         api_key=NVIDIA_API_KEY,
     )
+
+
+def _create_completion_with_retry(client: OpenAI, **kwargs):
+    """Executes a chat completion with retry backoff for transient connection errors or 5xx."""
+    max_retries = 3
+    for attempt in range(max_retries):
+        try:
+            return client.chat.completions.create(**kwargs)
+        except Exception as exc:
+            err_str = str(exc)
+            is_transient = any(msg in err_str for msg in [
+                "Connection", "RemoteDisconnected", "timeout", "timed out", 
+                "500", "502", "503", "504", "RateLimitError", "429"
+            ])
+            if attempt < max_retries - 1 and is_transient:
+                sleep_secs = 2 * (attempt + 1)
+                print(f"NVIDIA API transient error ({err_str}). Retrying in {sleep_secs}s (attempt {attempt + 1}/{max_retries})...")
+                time.sleep(sleep_secs)
+                continue
+            raise
 
 
 def call_llm(
@@ -114,7 +135,8 @@ def extract_events(context: str, prompt: str) -> dict:
     ]
 
     try:
-        response = _nvidia_client().chat.completions.create(
+        response = _create_completion_with_retry(
+            _nvidia_client(),
             model=NVIDIA_MODEL,
             messages=messages,
             temperature=0.1,   # deterministic JSON output
@@ -204,7 +226,8 @@ def generate_search_variants(prompt: str) -> list[str]:
     ]
 
     try:
-        response = _nvidia_client().chat.completions.create(
+        response = _create_completion_with_retry(
+            _nvidia_client(),
             model=NVIDIA_MODEL,
             messages=messages,
             temperature=0.3,
