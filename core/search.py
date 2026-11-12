@@ -96,16 +96,25 @@ def get_web_urls(search_term: str, num_results: int = 15) -> tuple[list[str], st
     """Searches SearXNG and returns crawlable URLs plus a snippet context string."""
     discard_domains = [
         "youtube.com", "britannica.com", "vimeo.com",
-        "support.google.com",
+        "support.google.com", "accounts.google.com", "productforums.google.com",
+        "support.microsoft.com", "apps.microsoft.com",
+        # App stores & Social media (never contain event schedules/listings)
+        "play.google.com", "chromewebstore.google.com", "apkpure.com", "softonic.com",
+        "instagram.com", "tiktok.com",
         # Dictionary & Encyclopedia spam
         "merriam-webster.com", "dictionary.com", "cambridge.org", "wiktionary.org", "wikipedia.org",
-        "mochidictionary.net", "soha.vn", "zim.vn",
-        # Non-event media, video & entertainment portals
+        "mochidictionary.net", "soha.vn", "zim.vn", "larousse.fr", "cnrtl.fr",
+        "dictionnaire-academie.fr", "linternaute.fr", "investopedia.com", "howtogeek.com",
+        # Sports scores & betting
+        "flashscore.es", "flashscore.com", "flashscore.com.ve",
+        # Foreign government & vehicle registry portals
+        "gov.vn", "chinhphu.vn", "thuvienphapluat.vn", "ketoannavi.vn", "luatvietnam.vn",
+        "gov.pk", "txdmv.gov", "dmv.gov", "sssanswers.com", "norfolk.gov", "nrha.us",
+        # Non-event media, movies & video game release calendars
         "rottentomatoes.com", "moviefone.com", "imdb.com", "fandango.com",
         "sensacine.com", "warnerbros.com", "sky.com", "wavy.com", "whro.org",
         "canaltech.com.br", "techtudo.com.br", "globo.com", "baidu.com",
-        # Generic government / public welfare portals
-        "sssanswers.com", "norfolk.gov", "nrha.us",
+        "movieinsider.com", "ign.com", "globaltv.com", "globalplayer.com",
         # Car auctions & non-tech / non-business aggregators
         "wynnresorts.com", "broadarrowauctions.com",
         # Low quality aggregators and scrapers
@@ -116,22 +125,28 @@ def get_web_urls(search_term: str, num_results: int = 15) -> tuple[list[str], st
     ]
 
     try:
+        # Strip filler words (like "upcoming") so search engines don't match movie/game lists or dictionaries
+        clean_query = re.sub(r'\b(upcoming|latest|current)\b', '', search_term, flags=re.IGNORECASE)
+        clean_query = re.sub(r'\s+', ' ', clean_query).strip()
+        if not clean_query:
+            clean_query = search_term
+
         # Prevent proxy exit-node geo-pollution (e.g. Brazilian, Vietnamese or Russian spam)
         # by explicitly directing SearXNG to English or French based on query keywords.
-        fr_markers = ["cameroun", "douala", "yaoundé", "bafoussam", "conférence", "atelier", "salons", "développeurs", "formation", "concours"]
-        search_lang = "fr" if any(m in search_term.lower() for m in fr_markers) else "en"
+        fr_markers = ["cameroun", "douala", "yaoundé", "bafoussam", "conférence", "atelier", "salons", "développeurs", "formation", "concours", "buea", "limbe", "agricole", "pastorale"]
+        search_lang = "fr" if any(m in clean_query.lower() for m in fr_markers) else "en"
 
         params = urllib.parse.urlencode({
-            "q": search_term,
+            "q": clean_query,
             "format": "json",
             "language": search_lang,
-            "engines": "google,brave,bing,duckduckgo,google news",
+            "engines": "google,bing,duckduckgo,google news",
         })
         req_url = f"{SEARXNG_URL}/search?{params}"
         print(f"Querying SearXNG ({search_lang}): {req_url}")
 
         # Throttling Safety: Jitter between sequential searches
-        time.sleep(random.uniform(2.5, 5.0))
+        time.sleep(random.uniform(2.5, 4.0))
 
         req = urllib.request.Request(req_url, headers={"User-Agent": "llm-web-search/1.0"})
         with urllib.request.urlopen(req, timeout=15) as resp:
@@ -169,12 +184,13 @@ def get_web_urls(search_term: str, num_results: int = 15) -> tuple[list[str], st
         raise RuntimeError(f"Failed to fetch results from the web: {exc}") from exc
 
 
-def get_web_urls_multi(queries: list[str], max_results_per_query: int = 8) -> tuple[list[str], str]:
+def get_web_urls_multi(queries: list[str], max_results_per_query: int = 8, max_total_urls: int = 8) -> tuple[list[str], str]:
     """Executes multiple queries against SearXNG and aggregates the results.
     
     Args:
         queries (list[str]): The list of enriched queries to search.
         max_results_per_query (int): Max URLs to extract per query.
+        max_total_urls (int): Max URLs to return in total to avoid crawling overload.
         
     Returns:
         tuple[list[str], str]: Deduplicated list of URLs and aggregated snippet context.
@@ -183,13 +199,18 @@ def get_web_urls_multi(queries: list[str], max_results_per_query: int = 8) -> tu
     seen_urls = set()
     all_snippets = []
     
-    for query in queries:
+    # Process at most 4 queries to prevent rate-limiting and query spam
+    for query in queries[:4]:
+        if len(all_urls) >= max_total_urls:
+            break
         try:
             urls, snippet = get_web_urls(search_term=query, num_results=max_results_per_query)
             for url in urls:
                 if url not in seen_urls:
                     seen_urls.add(url)
                     all_urls.append(url)
+                    if len(all_urls) >= max_total_urls:
+                        break
             if snippet:
                 all_snippets.append(f"--- Results for: {query} ---\n{snippet}")
         except ValueError:

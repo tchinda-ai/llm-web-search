@@ -274,21 +274,29 @@ def generate_search_variants(prompt: str) -> list[str]:
             if not isinstance(v, str):
                 continue
             v_clean = v.strip().strip('"').strip("'").strip()
-            if len(v_clean) < 4 or not any(c.isalpha() for c in v_clean):
+            # Variants must be multi-word search phrases (2 to 7 words)
+            words = v_clean.split()
+            if len(words) < 2 or len(words) > 7:
+                continue
+            # Discard commentary, code, or syntax artifacts
+            if any(char in v_clean for char in ['=', '{', '}', '<', '>', '[', ']', '(', ')', ';', ':']):
                 continue
             v_lower = v_clean.lower()
             if any(bad in v_lower for bad in forbidden_substrings):
                 continue
-            if v_lower == prompt.lower():
+            if v_lower == prompt.lower() or v_clean in valid_variants:
                 continue
             valid_variants.append(v_clean)
+            # Strictly limit to 4 variants maximum
+            if len(valid_variants) >= 4:
+                break
 
         # Fallback to smart keyword variants if model returned placeholders or failed
         if not valid_variants:
             clean_prompt = re.sub(r'\b(upcoming|latest|current)\b', '', prompt, flags=re.IGNORECASE).strip()
             valid_variants = [
+                f"{clean_prompt} 2026",
                 f"{clean_prompt} schedule 2026",
-                f"{clean_prompt} registration 2026",
             ]
 
         print(f"Generated {len(valid_variants)} search variants for '{prompt}': {valid_variants}")
@@ -297,4 +305,4 @@ def generate_search_variants(prompt: str) -> list[str]:
     except Exception as exc:
         print(f"Query expansion error: {exc}")
         clean_prompt = re.sub(r'\b(upcoming|latest|current)\b', '', prompt, flags=re.IGNORECASE).strip()
-        return [f"{clean_prompt} schedule 2026", f"{clean_prompt} registration 2026"]
+        return [f"{clean_prompt} 2026", f"{clean_prompt} schedule 2026"]
