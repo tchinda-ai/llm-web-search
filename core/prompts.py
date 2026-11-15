@@ -130,8 +130,10 @@ Requirements:
    - DO NOT generate full sentences or 10+ word keyword piles.
    - DO NOT use complex boolean expressions like 'OR site:... OR site:...'. Keep terms natural for search engines.
 
-3. HIGH-INTENT EVENT VOCABULARY:
-   - Use concrete event nouns: "hackathon", "bootcamp", "conférence", "sommet", "forum", "webinaire", "salon", "atelier", "meetup", "registration 2026", "inscription 2026".
+3. DOMAIN TOPIC PRESERVATION (CRITICAL):
+   - Every single variant MUST include the core subject topic of the prompt (e.g. tech, coding, fintech, startup, entrepreneurship, agriculture, health, culture).
+   - NEVER generate standalone generic words like "registration 2026", "inscription 2026", "events 2026", or isolated city names without the subject matter!
+   - Combine the domain topic with specific event formats: "hackathon", "bootcamp", "conférence", "sommet", "forum", "webinaire", "salon", "atelier", "meetup".
 
 4. STRICT NO PLACEHOLDERS:
    - Output 4 real, distinct, executable search phrases.
@@ -139,49 +141,64 @@ Requirements:
 
 Examples:
 - Prompt: "upcoming technology coding bootcamps" (No location given -> Anchor to Cameroon & Africa Online)
-  Variants:
-  [
+{
+  "variants": [
     "bootcamp code en ligne Cameroun 2026",
-    "online coding bootcamps Africa 2026 registration",
+    "online coding bootcamps Africa 2026",
     "formation développeur web Cameroun 2026",
     "virtual tech bootcamp cohort Africa 2026"
   ]
+}
+
+- Prompt: "upcoming entrepreneurship virtual summits" (No location given -> Anchor to Cameroon & Africa Online)
+{
+  "variants": [
+    "sommet virtuel entrepreneuriat Cameroun 2026",
+    "virtual startup summit Africa 2026",
+    "forum entrepreneuriat en ligne Afrique 2026",
+    "online entrepreneur pitch competition Africa 2026"
+  ]
+}
 
 - Prompt: "upcoming finance fintech webinars" (No location given -> Anchor to Cameroon & Africa Online)
-  Variants:
-  [
+{
+  "variants": [
     "webinaire fintech Cameroun 2026",
     "Africa fintech webinar online 2026",
     "conférence finance numérique Douala 2026",
     "digital banking virtual summit Africa 2026"
   ]
+}
 
 - Prompt: "upcoming technology events in Buea" (Explicit city: Buea -> Silicon Mountain / Anglophone)
-  Variants:
-  [
+{
+  "variants": [
     "Silicon Mountain tech conference Buea 2026",
     "Buea developer hackathon registration 2026",
     "tech meetup startups Buea 2026",
     "software engineering workshop Buea 2026"
   ]
+}
 
 - Prompt: "upcoming agriculture events in Bafoussam" (Explicit city: Bafoussam -> West Francophone)
-  Variants:
-  [
+{
+  "variants": [
     "foire agricole Bafoussam 2026",
     "salon agribusiness Ouest Cameroun 2026",
     "atelier élevage agriculture Bafoussam 2026",
     "forum agro-pastoral Bafoussam 2026"
   ]
+}
 
 - Prompt: "upcoming technology events in Douala" (Explicit city: Douala -> Economic Hub / Bilingual)
-  Variants:
-  [
+{
+  "variants": [
     "conférence tech hackathon Douala 2026",
     "Douala developer workshops meetup 2026",
     "salon innovation numérique Douala 2026",
     "GDG Douala tech event registration"
   ]
+}
 
 Return a JSON object with a single key "variants" containing an array of 4 distinct search query strings.
 Respond with valid JSON only — no markdown code fences, no explanatory text.

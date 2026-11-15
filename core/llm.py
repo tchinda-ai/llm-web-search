@@ -244,17 +244,15 @@ def generate_search_variants(prompt: str) -> list[str]:
 
         # Robustly extract JSON if wrapped in markdown code fences or conversational text
         import re
-        json_match = re.search(r'\{.*\}', raw, re.DOTALL)
-        if json_match:
-            raw = json_match.group(0)
-        elif raw.startswith("```"):
-            raw = raw.split("```")[1]
-            if raw.startswith("json"):
-                raw = raw[4:]
-            raw = raw.strip()
+        code_fence = re.search(r'```(?:json)?\s*([\s\S]*?)\s*```', raw)
+        json_candidate = code_fence.group(1).strip() if code_fence else raw
+
+        # Look for JSON object {...} or JSON array [...]
+        json_match = re.search(r'(\{[\s\S]*\}|\[[\s\S]*\])', json_candidate)
+        cleaned_json = json_match.group(1) if json_match else json_candidate
 
         # Clean trailing commas which cause JSON parsing failures
-        cleaned_json = re.sub(r',\s*([\]}])', r'\1', raw)
+        cleaned_json = re.sub(r',\s*([\]}])', r'\1', cleaned_json)
 
         raw_variants = []
         try:
@@ -264,25 +262,41 @@ def generate_search_variants(prompt: str) -> list[str]:
             elif isinstance(data, list):
                 raw_variants = data
         except Exception as json_err:
-            # Fallback regex extraction of quoted strings if JSON has syntax errors
+            # Fallback line-by-line extraction if JSON has syntax errors
             print(f"Query expansion JSON parse fallback: {json_err}")
-            raw_variants = re.findall(r'"([^"\n\\]{4,80})"', raw)
+            lines = [line.strip() for line in raw.split("\n") if line.strip()]
+            for line in lines:
+                m = re.match(r'^(?:\d+[\.\)]|\-|\*)\s*["\']?([^"\n\r]{6,80})["\']?$', line)
+                if m:
+                    raw_variants.append(m.group(1))
+            if not raw_variants:
+                raw_variants = re.findall(r'"([^"\n\\]{6,80})"', raw)
 
+        GENERIC_TOKENS = {
+            "registration", "inscription", "schedule", "events", "meetup", "summit", 
+            "conference", "webinar", "bootcamp", "workshop", "event", "upcoming", 
+            "latest", "current", "online", "virtual", "annual", "2024", "2025", "2026", "2027",
+            "en", "de", "des", "du", "in", "and", "for", "the", "a", "an", "to"
+        }
         valid_variants = []
         forbidden_substrings = {"string", "variant", "...", "dummy", "placeholder", "example", "<string"}
         for v in raw_variants:
             if not isinstance(v, str):
                 continue
             v_clean = v.strip().strip('"').strip("'").strip()
-            # Variants must be multi-word search phrases (2 to 7 words)
+            # Variants must be multi-word search phrases (3 to 7 words)
             words = v_clean.split()
-            if len(words) < 2 or len(words) > 7:
+            if len(words) < 3 or len(words) > 7:
                 continue
             # Discard commentary, code, or syntax artifacts
             if any(char in v_clean for char in ['=', '{', '}', '<', '>', '[', ']', '(', ')', ';', ':']):
                 continue
             v_lower = v_clean.lower()
             if any(bad in v_lower for bad in forbidden_substrings):
+                continue
+            # CRITICAL: Reject queries that consist only of generic words (e.g. "registration 2026", "inscription 2026")
+            clean_words = [re.sub(r'[^a-zA-Z0-9]', '', w.lower()) for w in words]
+            if all(w in GENERIC_TOKENS or not w for w in clean_words):
                 continue
             if v_lower == prompt.lower() or v_clean in valid_variants:
                 continue
@@ -291,13 +305,27 @@ def generate_search_variants(prompt: str) -> list[str]:
             if len(valid_variants) >= 4:
                 break
 
-        # Fallback to smart keyword variants if model returned placeholders or failed
-        if not valid_variants:
+        # Fallback to high-yield keyword variants if fewer than 3 valid variants were extracted
+        if len(valid_variants) < 3:
             clean_prompt = re.sub(r'\b(upcoming|latest|current)\b', '', prompt, flags=re.IGNORECASE).strip()
-            valid_variants = [
-                f"{clean_prompt} 2026",
-                f"{clean_prompt} schedule 2026",
-            ]
+            has_location = any(loc in prompt.lower() for loc in [
+                "cameroun", "cameroon", "douala", "yaounde", "yaoundé", "buea", "bamenda",
+                "bafoussam", "garoua", "kribi", "limbe", "dschang", "maroua", "ngaoundere"
+            ])
+            if not has_location:
+                fallback_pool = [
+                    f"{clean_prompt} Cameroun 2026",
+                    f"{clean_prompt} Africa online 2026",
+                    f"{clean_prompt} 2026",
+                ]
+            else:
+                fallback_pool = [
+                    f"{clean_prompt} 2026",
+                    f"{clean_prompt} schedule 2026",
+                ]
+            for fb in fallback_pool:
+                if fb not in valid_variants and len(valid_variants) < 4:
+                    valid_variants.append(fb)
 
         print(f"Generated {len(valid_variants)} search variants for '{prompt}': {valid_variants}")
         return valid_variants
