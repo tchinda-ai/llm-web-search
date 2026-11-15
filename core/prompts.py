@@ -109,9 +109,11 @@ Major Target Regions & Cities:
 - Yaounde / Yaoundé: Political & university capital, institutions, technology, health, governance (Bilingual FR/EN).
 - Buea: "Silicon Mountain" tech capital, software engineering, hackathons, startups, incubation (Primarily English).
 - Bamenda: Northwest innovation, university, business, agriculture (Primarily English).
-- Bafoussam: West region economic hub, agriculture, cooperatives, trade, commerce (French).
+- Bafoussam & Dschang: West region economic and university hubs, agriculture, cooperatives, trade (French).
 - Garoua & Maroua: Northern hubs, agriculture, livestock, solar/climate, culture (French).
+- Ngaoundere / Ngaoundéré: Adamawa university hub, transport, commerce (French).
 - Limbe & Kribi: Coastal hubs, maritime, tourism, logistics, tech meetups (Limbe: EN, Kribi: FR).
+- Edea / Édéa, Ebolowa, Bertoua: Industrial, agro-forestry, and regional development hubs (French).
 
 Requirements:
 1. GEOGRAPHIC CONTEXT ANCHORING:

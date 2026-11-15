@@ -85,6 +85,10 @@ async def crawl_webpages(urls: list[str], prompt: str) -> list[CrawlResult]:
         ]
     )
 
+    async with AsyncWebCrawler(config=browser_config) as crawler:
+        results = await crawler.arun_many(urls, config=crawler_config)
+        print(f"Crawled {len(results)} pages")
+        return results
     try:
         async with AsyncWebCrawler(config=browser_config) as crawler:
             results = await crawler.arun_many(urls, config=crawler_config)

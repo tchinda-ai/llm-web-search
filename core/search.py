@@ -141,7 +141,12 @@ def get_web_urls(search_term: str, num_results: int = 15) -> tuple[list[str], st
 
         # Prevent proxy exit-node geo-pollution (e.g. Brazilian, Vietnamese or Russian spam)
         # by explicitly directing SearXNG to English or French based on query keywords.
-        fr_markers = ["cameroun", "douala", "yaoundé", "bafoussam", "conférence", "atelier", "salons", "développeurs", "formation", "concours", "buea", "limbe", "agricole", "pastorale"]
+        fr_markers = [
+            "cameroun", "douala", "yaounde", "yaoundé", "bafoussam", "garoua", "maroua",
+            "ngaoundere", "ngaoundéré", "dschang", "kribi", "edea", "édéa", "ebolowa", "bertoua",
+            "conférence", "atelier", "salons", "développeurs", "formation", "concours",
+            "agricole", "pastorale"
+        ]
         search_lang = "fr" if any(m in clean_query.lower() for m in fr_markers) else "en"
 
         params = urllib.parse.urlencode({
