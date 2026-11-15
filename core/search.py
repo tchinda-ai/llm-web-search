@@ -107,6 +107,14 @@ def get_web_urls(search_term: str, num_results: int = 15) -> tuple[list[str], st
         "dictionnaire-academie.fr", "linternaute.fr", "investopedia.com", "howtogeek.com",
         # Sports scores & betting
         "flashscore.es", "flashscore.com", "flashscore.com.ve",
+        # Financial tickers, market data & crypto exchanges (contain stock/price tickers, not events)
+        "tradingview.com", "binance.com", "coinmarketcap.com", "coingecko.com",
+        "thestreet.com", "investing.com", "finance.yahoo.com", "marketwatch.com",
+        # Corporate documentation & cloud consoles
+        "aws.amazon.com", "signin.aws.amazon.com", "docs.aws.amazon.com",
+        "learn.microsoft.com", "devblogs.microsoft.com", "plaid.com", "ibm.com",
+        # Streaming & movie review sites
+        "watch.plex.tv", "moviemezzanine.com", "netflix.com", "spotify.com",
         # Foreign government & vehicle registry portals
         "gov.vn", "chinhphu.vn", "thuvienphapluat.vn", "ketoannavi.vn", "luatvietnam.vn",
         "gov.pk", "txdmv.gov", "dmv.gov", "sssanswers.com", "norfolk.gov", "nrha.us",

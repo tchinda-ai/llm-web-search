@@ -69,7 +69,7 @@ async def crawl_webpages(urls: list[str], prompt: str) -> list[CrawlResult]:
             "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
             "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/132.0.0.0 Safari/537.36"
         ),
-        page_timeout=30000,
+        page_timeout=15000,
     )
     browser_config = BrowserConfig(
         headless=True, 
@@ -85,10 +85,14 @@ async def crawl_webpages(urls: list[str], prompt: str) -> list[CrawlResult]:
         ]
     )
 
-    async with AsyncWebCrawler(config=browser_config) as crawler:
-        results = await crawler.arun_many(urls, config=crawler_config)
-        print(f"Crawled {len(results)} pages")
-        return results
+    try:
+        async with AsyncWebCrawler(config=browser_config) as crawler:
+            results = await crawler.arun_many(urls, config=crawler_config)
+            print(f"Crawled {len(results)} pages")
+            return results
+    except Exception as exc:
+        print(f"Crawl4AI error during crawling: {exc}")
+        return []
 
 
 def build_context_from_crawl(
