@@ -105,6 +105,10 @@ def get_web_urls(search_term: str, num_results: int = 15) -> tuple[list[str], st
         "merriam-webster.com", "dictionary.com", "cambridge.org", "wiktionary.org", "wikipedia.org",
         "mochidictionary.net", "soha.vn", "zim.vn", "larousse.fr", "cnrtl.fr",
         "dictionnaire-academie.fr", "linternaute.fr", "investopedia.com", "howtogeek.com",
+        "iciba.com", "collinsdictionary.com", "yourdictionary.com", "thefreedictionary.com",
+        "wordreference.com", "linguee.com", "reverso.net",
+        # Product reviews, affiliate SEO blogs & SEO spam
+        "oneclearwinner.com",
         # Sports scores & betting
         "flashscore.es", "flashscore.com", "flashscore.com.ve",
         # Financial tickers, market data & crypto exchanges (contain stock/price tickers, not events)
@@ -153,7 +157,7 @@ def get_web_urls(search_term: str, num_results: int = 15) -> tuple[list[str], st
             "q": clean_query,
             "format": "json",
             "language": search_lang,
-            "engines": "google,bing,duckduckgo,google news",
+            "engines": "google,bing,brave,duckduckgo,google news",
         })
         req_url = f"{SEARXNG_URL}/search?{params}"
         print(f"Querying SearXNG ({search_lang}): {req_url}")
