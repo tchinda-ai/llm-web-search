@@ -147,7 +147,7 @@ def get_web_urls(search_term: str, num_results: int = 15) -> tuple[list[str], st
             "q": clean_query,
             "format": "json",
             "language": "all",
-            "engines": "google,bing,brave,duckduckgo,google news",
+            "engines": "google,bing,duckduckgo,google news,qwant",
         })
         req_url = f"{SEARXNG_URL}/search?{params}"
         print(f"Querying SearXNG: {req_url}")

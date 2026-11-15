@@ -12,6 +12,15 @@ search:
     - json
   default_lang: "en-US"
   timeout_limit: 15.0
+  ban_time_on_fail: 0
+  max_ban_time_on_fail: 0
+  suspended_times:
+    SearxEngineAccessDenied: 0
+    SearxEngineCaptcha: 0
+    SearxEngineTooManyRequests: 0
+    cf_SearxEngineCaptcha: 0
+    cf_SearxEngineAccessDenied: 0
+    recaptcha_SearxEngineCaptcha: 0
 
 outgoing:
   request_timeout: 10.0
@@ -33,19 +42,33 @@ botdetection:
 
 engines:
   - name: google
+    engine: google
     disabled: false
 
   - name: google news
+    engine: google_news
     disabled: false
 
   - name: bing
+    engine: bing
     disabled: false
 
-  - name: brave
+  - name: qwant
+    engine: qwant
     disabled: false
 
   - name: duckduckgo
+    engine: duckduckgo
     disabled: false
+
+  - name: brave
+    disabled: true
+
+  - name: startpage
+    disabled: true
+
+  - name: karmasearch
+    disabled: true
 
   - name: wikipedia
     disabled: false
