@@ -11,7 +11,7 @@ search:
     - html
     - json
   default_lang: "en-US"
-  timeout_limit: 15.0
+  timeout_limit: 25.0
   ban_time_on_fail: 0
   max_ban_time_on_fail: 0
   suspended_times:
@@ -23,11 +23,10 @@ search:
     recaptcha_SearxEngineCaptcha: 0
 
 outgoing:
-  request_timeout: 10.0
-  connect_timeout: 10.0
+  request_timeout: 20.0
+  connect_timeout: 15.0
   proxies:
     "all://":
-      - http://54fbdf522c44f7953be6__cr.cm:cafb6648b70eddf4@gw.dataimpulse.com:823
       - http://54fbdf522c44f7953be6__cr.fr:cafb6648b70eddf4@gw.dataimpulse.com:823
       - http://54fbdf522c44f7953be6__cr.us:cafb6648b70eddf4@gw.dataimpulse.com:823
       - http://54fbdf522c44f7953be6:cafb6648b70eddf4@gw.dataimpulse.com:823
@@ -54,13 +53,17 @@ engines:
     engine: bing
     disabled: false
 
+  - name: yahoo
+    engine: yahoo
+    disabled: false
+
   - name: qwant
     engine: qwant
-    disabled: false
+    disabled: true
 
   - name: duckduckgo
     engine: duckduckgo
-    disabled: false
+    disabled: true
 
   - name: brave
     disabled: true
@@ -72,7 +75,7 @@ engines:
     disabled: true
 
   - name: wikipedia
-    disabled: false
+    disabled: true
 
   - name: wikidata
     disabled: true

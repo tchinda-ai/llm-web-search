@@ -154,7 +154,7 @@ def get_web_urls(search_term: str, num_results: int = 15) -> tuple[list[str], st
         "gov.pk", "txdmv.gov", "dmv.gov", "sssanswers.com", "norfolk.gov", "nrha.us",
         "culture.gouv.fr", "gouv.fr",
         # Generic explainers & non-African media portals
-        "livescience.com", "theculturefactor.com", "radiofrance.fr",
+        "livescience.com", "theculturefactor.com", "radiofrance.fr", "mdpi.com",
         # Non-event media, movies & video game release calendars
         "rottentomatoes.com", "moviefone.com", "imdb.com", "fandango.com",
         "sensacine.com", "warnerbros.com", "sky.com", "wavy.com", "whro.org",
@@ -180,7 +180,7 @@ def get_web_urls(search_term: str, num_results: int = 15) -> tuple[list[str], st
             "q": clean_query,
             "format": "json",
             "language": "all",
-            "engines": "google,bing,duckduckgo,google news",
+            "engines": "google,bing,yahoo,google news",
         })
         req_url = f"{SEARXNG_URL}/search?{params}"
         print(f"Querying SearXNG: {req_url}")
@@ -189,14 +189,15 @@ def get_web_urls(search_term: str, num_results: int = 15) -> tuple[list[str], st
         time.sleep(random.uniform(2.5, 4.0))
 
         req = urllib.request.Request(req_url, headers={"User-Agent": "llm-web-search/1.0"})
-        with urllib.request.urlopen(req, timeout=15) as resp:
+        with urllib.request.urlopen(req, timeout=28) as resp:
             data = json.loads(resp.read().decode())
 
         if data.get("unresponsive_engines"):
             print(f"SearXNG unresponsive engines: {data['unresponsive_engines']}")
 
+        raw_hits = data.get("results", [])
         valid_results = []
-        for r in data.get("results", []):
+        for r in raw_hits:
             clean_url = sanitize_url(r.get("url", ""), discard_domains)
             if clean_url:
                 r_copy = dict(r)
@@ -204,6 +205,7 @@ def get_web_urls(search_term: str, num_results: int = 15) -> tuple[list[str], st
                 if _is_relevant_result(r_copy, clean_query):
                     valid_results.append(r_copy)
 
+        print(f"SearXNG raw hits: {len(raw_hits)}, relevant after filter: {len(valid_results)}")
         raw_results = valid_results[:num_results]
 
         if not raw_results:
@@ -268,7 +270,7 @@ def get_web_urls_multi(queries: list[str], max_results_per_query: int = 8, max_t
         # Fallback: if all specific queries failed, try a simplified broad search from the root query
         if queries:
             root = queries[0]
-            clean_root = re.sub(r'\b(upcoming|latest|current|online|virtual|202[4-9])\b', '', root, flags=re.IGNORECASE).strip()
+            clean_root = re.sub(r'\b(upcoming|latest|current|online|virtual|events?|202[4-9])\b', '', root, flags=re.IGNORECASE).strip()
             clean_tokens = [w for w in clean_root.split() if len(w) > 2][:3]
             fallback_query = " ".join(clean_tokens) + " events 2026"
             print(f"All query variants returned 0 results. Trying simplified broad fallback: '{fallback_query}'")

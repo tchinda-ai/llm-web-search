@@ -86,94 +86,48 @@ KEYWORD_RULES = [
     ),
 ]
 
-CITY_TEMPLATES = {
-    # Silicon Mountain / Buea
-    "buea": [
-        'Silicon Mountain tech "Buea" {year}',
-        'tech meetup startups "Buea" {year}',
-        '{topic} event "Buea" {year}',
-        'hackathon workshop "Buea" {year}'
-    ],
-    # Economic Capital / Douala
-    "douala": [
-        'conférence {topic_fr} "Douala" {year}',
-        'salon {topic_fr} "Douala" {year}',
-        'forum {topic_fr} "Douala" {year}',
-        '{topic} event "Douala" {year}'
-    ],
-    # Political & University Capital / Yaoundé
-    "yaounde": [
-        'conférence {topic_fr} "Yaoundé" {year}',
-        'forum {topic_fr} "Yaoundé" {year}',
-        'salon {topic_fr} "Yaoundé" {year}',
-        '{topic} event "Yaounde" {year}'
-    ],
-    "yaoundé": [
-        'conférence {topic_fr} "Yaoundé" {year}',
-        'forum {topic_fr} "Yaoundé" {year}',
-        'salon {topic_fr} "Yaoundé" {year}',
-        '{topic} event "Yaounde" {year}'
-    ],
-    # West Region Agro & University Hub / Bafoussam & Dschang
-    "bafoussam": [
-        'foire {topic_fr} "Bafoussam" {year}',
-        'forum {topic_fr} "Bafoussam" {year}',
-        'salon agropastoral "Bafoussam" {year}',
-        'conférence "Bafoussam" {year}'
-    ],
-    "dschang": [
-        'conférence {topic_fr} "Dschang" {year}',
-        'forum "Dschang" {year}',
-        'salon innovation "Dschang" {year}',
-        'atelier "Dschang" {year}'
-    ],
-    # Northwest Innovation Hub / Bamenda
-    "bamenda": [
-        '{topic} workshop "Bamenda" {year}',
-        'innovation meetup "Bamenda" {year}',
-        'startup summit "Bamenda" {year}',
-        'entrepreneurship forum "Bamenda" {year}'
-    ],
-    # Coastal & Tech / Limbe
-    "limbe": [
-        'tech summit "Limbe" {year}',
-        'conference meetup "Limbe" {year}',
-        '{topic} workshop "Limbe" {year}',
-        'forum "Limbe" {year}'
-    ],
-    # Deep Seaport & Industry / Kribi
-    "kribi": [
-        'forum économique "Kribi" {year}',
-        'conférence {topic_fr} "Kribi" {year}',
-        'salon "Kribi" {year}',
-        '{topic} event "Kribi" {year}'
-    ],
-    # Northern Hubs / Garoua & Maroua
-    "garoua": [
-        'forum {topic_fr} "Garoua" {year}',
-        'foire agropastorale "Garoua" {year}',
-        'salon économique "Garoua" {year}',
-        'conférence "Garoua" {year}'
-    ],
-    "maroua": [
-        'forum {topic_fr} "Maroua" {year}',
-        'salon innovation "Maroua" {year}',
-        'conférence "Maroua" {year}',
-        'foire "Maroua" {year}'
-    ],
-    # Adamawa / Ngaoundéré
-    "ngaoundere": [
-        'forum {topic_fr} "Ngaoundéré" {year}',
-        'salon agropastoral "Ngaoundéré" {year}',
-        'conférence "Ngaoundéré" {year}',
-        'atelier "Ngaoundere" {year}'
-    ],
-    "ngaoundéré": [
-        'forum {topic_fr} "Ngaoundéré" {year}',
-        'salon agropastoral "Ngaoundéré" {year}',
-        'conférence "Ngaoundéré" {year}',
-        'atelier "Ngaoundere" {year}'
-    ],
+VERTICAL_CITY_TERMS = {
+    "technology": {
+        "en": ["tech conference", "hackathon", "developer meetup", "tech workshop"],
+        "fr": ["conférence tech", "hackathon développeurs", "forum numérique", "atelier tech"],
+    },
+    "finance": {
+        "en": ["fintech summit", "finance conference", "banking forum", "investment workshop"],
+        "fr": ["forum fintech", "conférence finance", "salon banque", "sommet investissement"],
+    },
+    "entrepreneurship": {
+        "en": ["startup pitch", "entrepreneurship summit", "business forum", "startup workshop"],
+        "fr": ["salon entrepreneuriat", "forum startup", "concours pitch", "conférence business"],
+    },
+    "agriculture": {
+        "en": ["agriculture summit", "agribusiness forum", "farming workshop", "agritech event"],
+        "fr": ["foire agricole", "salon agropastoral", "forum agriculture", "conférence agricole"],
+    },
+    "education": {
+        "en": ["education summit", "training workshop", "scholarship forum", "academic conference"],
+        "fr": ["salon éducation", "forum formation", "conférence universitaire", "atelier formation"],
+    },
+    "health": {
+        "en": ["health conference", "medical symposium", "public health forum", "healthcare workshop"],
+        "fr": ["congrès médical", "forum santé", "conférence santé", "salon médical"],
+    },
+    "climateenvironment": {
+        "en": ["climate summit", "renewable energy forum", "environment conference", "green workshop"],
+        "fr": ["forum climat", "conférence environnement", "salon énergie", "sommet écologique"],
+    },
+    "culture": {
+        "en": ["cultural festival", "culture event", "arts exhibition", "music festival"],
+        "fr": ["festival culturel", "événement culturel", "salon culture", "rencontres culturelles"],
+    },
+}
+
+CITY_DISPLAY_NAME = {
+    "yaounde": "Yaoundé",
+    "yaoundé": "Yaoundé",
+    "ngaoundere": "Ngaoundéré",
+    "ngaoundéré": "Ngaoundéré",
+    "edea": "Édéa",
+    "édéa": "Édéa",
 }
 
 TOPIC_FR_MAP = {
@@ -235,32 +189,21 @@ def generate_deterministic_variants(prompt: str) -> list[str]:
     # CASE 1: Specific City in Prompt
     if detected_city and detected_city not in ("cameroon", "cameroun"):
         city_key = detected_city.lower()
-        topic_fr = TOPIC_FR_MAP.get(detected_vertical, "professionnel")
-        topic_en = detected_vertical
+        city_label = CITY_DISPLAY_NAME.get(city_key, city_key.capitalize())
+        vertical_terms = VERTICAL_CITY_TERMS.get(detected_vertical, VERTICAL_CITY_TERMS["technology"])
 
-        templates = CITY_TEMPLATES.get(city_key)
-        if not templates:
-            # Generic Cameroon city template
-            if city_key in ANGLOPHONE_CITIES:
-                templates = [
-                    f"{{topic}} conference {city_key.capitalize()} {{year}}",
-                    f"tech meetup {city_key.capitalize()} {{year}}",
-                    f"startup workshop {city_key.capitalize()} {{year}}",
-                    f"annual {{topic}} events {city_key.capitalize()} {{year}}",
-                ]
-            else:
-                templates = [
-                    f"conférence {{topic_fr}} {city_key.capitalize()} {{year}}",
-                    f"forum {{topic_fr}} {city_key.capitalize()} {{year}}",
-                    f"salon {{topic_fr}} {city_key.capitalize()} {{year}}",
-                    f"rencontres {city_key.capitalize()} {{year}}",
-                ]
+        if city_key in ANGLOPHONE_CITIES:
+            terms = list(vertical_terms["en"])
+            if city_key == "buea" and detected_vertical == "technology":
+                terms[0] = "Silicon Mountain tech"
+            return [f'{term} "{city_label}" {year}' for term in terms[:4]]
 
-        results = [
-            t.format(year=year, topic=topic_en, topic_fr=topic_fr)
-            for t in templates[:4]
-        ]
-        return results
+        # Francophone / Bilingual cities: 3 French + 1 English variant
+        fr_terms = vertical_terms["fr"][:3]
+        en_term = vertical_terms["en"][0]
+        variants = [f'{term} "{city_label}" {year}' for term in fr_terms]
+        variants.append(f'{en_term} "{city_label}" {year}')
+        return variants
 
     # CASE 2: Online / Global Discovery (Matches specific keyword rules)
     for pattern, templates in KEYWORD_RULES:
