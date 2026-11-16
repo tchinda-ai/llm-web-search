@@ -89,102 +89,102 @@ KEYWORD_RULES = [
 CITY_TEMPLATES = {
     # Silicon Mountain / Buea
     "buea": [
-        "Silicon Mountain tech conference Buea {year}",
-        "tech meetup startups Buea {year}",
-        "{topic} conference Buea {year}",
-        "developer hackathon Buea {year}"
+        'Silicon Mountain tech "Buea" {year}',
+        'tech meetup startups "Buea" {year}',
+        '{topic} event "Buea" {year}',
+        'hackathon workshop "Buea" {year}'
     ],
     # Economic Capital / Douala
     "douala": [
-        "conférence {topic_fr} Douala {year}",
-        "salon innovation {topic_fr} Douala {year}",
-        "forum {topic_fr} Douala {year}",
-        "meetup professionnels Douala {year}"
+        'conférence {topic_fr} "Douala" {year}',
+        'salon {topic_fr} "Douala" {year}',
+        'forum {topic_fr} "Douala" {year}',
+        '{topic} event "Douala" {year}'
     ],
     # Political & University Capital / Yaoundé
     "yaounde": [
-        "conférence {topic_fr} Yaoundé {year}",
-        "forum national {topic_fr} Yaoundé {year}",
-        "salon {topic_fr} Yaoundé {year}",
-        "symposium atelier {topic_fr} Yaoundé {year}"
+        'conférence {topic_fr} "Yaoundé" {year}',
+        'forum {topic_fr} "Yaoundé" {year}',
+        'salon {topic_fr} "Yaoundé" {year}',
+        '{topic} event "Yaounde" {year}'
     ],
     "yaoundé": [
-        "conférence {topic_fr} Yaoundé {year}",
-        "forum national {topic_fr} Yaoundé {year}",
-        "salon {topic_fr} Yaoundé {year}",
-        "symposium atelier {topic_fr} Yaoundé {year}"
+        'conférence {topic_fr} "Yaoundé" {year}',
+        'forum {topic_fr} "Yaoundé" {year}',
+        'salon {topic_fr} "Yaoundé" {year}',
+        '{topic} event "Yaounde" {year}'
     ],
     # West Region Agro & University Hub / Bafoussam & Dschang
     "bafoussam": [
-        "foire salon {topic_fr} Bafoussam {year}",
-        "forum économique {topic_fr} Bafoussam {year}",
-        "salon agropastoral Ouest Cameroun {year}",
-        "conférence atelier Bafoussam {year}"
+        'foire {topic_fr} "Bafoussam" {year}',
+        'forum {topic_fr} "Bafoussam" {year}',
+        'salon agropastoral "Bafoussam" {year}',
+        'conférence "Bafoussam" {year}'
     ],
     "dschang": [
-        "conférence universitaire {topic_fr} Dschang {year}",
-        "forum recherche agropastoral Dschang {year}",
-        "salon innovation Dschang {year}",
-        "atelier formation Dschang {year}"
+        'conférence {topic_fr} "Dschang" {year}',
+        'forum "Dschang" {year}',
+        'salon innovation "Dschang" {year}',
+        'atelier "Dschang" {year}'
     ],
     # Northwest Innovation Hub / Bamenda
     "bamenda": [
-        "{topic} workshop conference Bamenda {year}",
-        "Bamenda innovation meetup {year}",
-        "startup summit Bamenda {year}",
-        "youth entrepreneurship forum Bamenda {year}"
+        '{topic} workshop "Bamenda" {year}',
+        'innovation meetup "Bamenda" {year}',
+        'startup summit "Bamenda" {year}',
+        'entrepreneurship forum "Bamenda" {year}'
     ],
     # Coastal & Tech / Limbe
     "limbe": [
-        "tech maritime summit Limbe {year}",
-        "Limbe conference meetup {year}",
-        "{topic} workshop Limbe {year}",
-        "innovators forum Limbe {year}"
+        'tech summit "Limbe" {year}',
+        'conference meetup "Limbe" {year}',
+        '{topic} workshop "Limbe" {year}',
+        'forum "Limbe" {year}'
     ],
     # Deep Seaport & Industry / Kribi
     "kribi": [
-        "forum économique investissement Kribi {year}",
-        "conférence {topic_fr} Kribi {year}",
-        "salon développement industriel Kribi {year}",
-        "rencontres professionnelles Kribi {year}"
+        'forum économique "Kribi" {year}',
+        'conférence {topic_fr} "Kribi" {year}',
+        'salon "Kribi" {year}',
+        '{topic} event "Kribi" {year}'
     ],
     # Northern Hubs / Garoua & Maroua
     "garoua": [
-        "forum régional {topic_fr} Garoua {year}",
-        "foire agropastorale Garoua {year}",
-        "salon économique Garoua {year}",
-        "conférence formation Garoua {year}"
+        'forum {topic_fr} "Garoua" {year}',
+        'foire agropastorale "Garoua" {year}',
+        'salon économique "Garoua" {year}',
+        'conférence "Garoua" {year}'
     ],
     "maroua": [
-        "forum universitaire {topic_fr} Maroua {year}",
-        "salon de l'innovation Maroua {year}",
-        "conférence climat agropastoral Maroua {year}",
-        "foire artisanat Maroua {year}"
+        'forum {topic_fr} "Maroua" {year}',
+        'salon innovation "Maroua" {year}',
+        'conférence "Maroua" {year}',
+        'foire "Maroua" {year}'
     ],
     # Adamawa / Ngaoundéré
     "ngaoundere": [
-        "forum économique universitaire Ngaoundéré {year}",
-        "salon agropastoral Ngaoundéré {year}",
-        "conférence atelier Ngaoundéré {year}",
-        "rencontres régionales Ngaoundéré {year}"
+        'forum {topic_fr} "Ngaoundéré" {year}',
+        'salon agropastoral "Ngaoundéré" {year}',
+        'conférence "Ngaoundéré" {year}',
+        'atelier "Ngaoundere" {year}'
     ],
     "ngaoundéré": [
-        "forum économique universitaire Ngaoundéré {year}",
-        "salon agropastoral Ngaoundéré {year}",
-        "conférence atelier Ngaoundéré {year}",
-        "rencontres régionales Ngaoundéré {year}"
+        'forum {topic_fr} "Ngaoundéré" {year}',
+        'salon agropastoral "Ngaoundéré" {year}',
+        'conférence "Ngaoundéré" {year}',
+        'atelier "Ngaoundere" {year}'
     ],
 }
 
 TOPIC_FR_MAP = {
-    "technology": "tech numérique",
-    "finance": "finance fintech",
-    "entrepreneurship": "entrepreneuriat startups",
-    "agriculture": "agricole agropastoral",
-    "education": "formation éducation",
-    "health": "santé médicale",
-    "climateenvironment": "climat environnement",
-    "culture": "culturel artistique",
+    "technology": "tech",
+    "finance": "fintech",
+    "entrepreneurship": "entrepreneuriat",
+    "agriculture": "agricole",
+    "education": "formation",
+    "health": "santé",
+    "climateenvironment": "climat",
+    "culture": "culturel",
 }
 
 def generate_deterministic_variants(prompt: str) -> list[str]:
@@ -269,11 +269,18 @@ def generate_deterministic_variants(prompt: str) -> list[str]:
             return results
 
     # CASE 3: General National (Cameroon) or Fallback
-    topic_fr = TOPIC_FR_MAP.get(detected_vertical, "tech innovation")
+    topic_fr = TOPIC_FR_MAP.get(detected_vertical, "innovation")
     topic_en = detected_vertical
+    if detected_vertical == "culture":
+        return [
+            f'festival culturel "Cameroun" {year}',
+            f'culture event "Cameroon" {year}',
+            f'festival concert "Douala" {year}',
+            f'exposition culturelle "Yaoundé" {year}'
+        ]
     return [
-        f"conférence {topic_fr} Cameroun {year}",
-        f"{topic_en} conference Douala Yaounde {year}",
-        f"salon forum {topic_fr} Cameroun {year}",
-        f"virtual {topic_en} summit Africa {year}"
+        f'conférence {topic_fr} "Cameroun" {year}',
+        f'{topic_en} conference "Cameroon" {year}',
+        f'salon forum {topic_fr} "Douala" {year}',
+        f'{topic_en} event "Yaoundé" {year}'
     ]

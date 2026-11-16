@@ -92,6 +92,36 @@ def check_robots_txt(urls: list[str]) -> list[str]:
     return allowed
 
 
+_CAMEROON_GEO_MARKERS = (
+    "cameroon", "cameroun", "douala", "yaounde", "yaoundé", "buea", "bamenda",
+    "bafoussam", "garoua", "limbe", "kribi", "maroua", "ngaoundere", "ngaoundéré",
+    "dschang", "edea", "édéa", "ebolowa", "bertoua", "cemac", "africa", "afrique", ".cm"
+)
+
+_GENERIC_SECTION_PATHS = frozenset({
+    "", "/culture", "/technology", "/tech", "/finance", "/business",
+    "/news", "/agriculture", "/education", "/health", "/fr/culture", "/en/culture"
+})
+
+
+def _is_relevant_result(result: dict, clean_query: str) -> bool:
+    """Filters out generic section homepages, definition pages, and off-region results."""
+    url = result.get("url", "")
+    path = urlparse(url).path.rstrip("/").lower()
+
+    if path in _GENERIC_SECTION_PATHS or "what-is-" in path or "definition-of-" in path:
+        return False
+
+    q_lower = clean_query.lower()
+    is_geo_query = any(m in q_lower for m in _CAMEROON_GEO_MARKERS)
+    if is_geo_query:
+        haystack = f"{url} {result.get('title', '')} {result.get('content', '')}".lower()
+        if not any(m in haystack for m in _CAMEROON_GEO_MARKERS):
+            return False
+
+    return True
+
+
 def get_web_urls(search_term: str, num_results: int = 15) -> tuple[list[str], str]:
     """Searches SearXNG and returns crawlable URLs plus a snippet context string."""
     discard_domains = [
@@ -122,6 +152,9 @@ def get_web_urls(search_term: str, num_results: int = 15) -> tuple[list[str], st
         # Foreign government & vehicle registry portals
         "gov.vn", "chinhphu.vn", "thuvienphapluat.vn", "ketoannavi.vn", "luatvietnam.vn",
         "gov.pk", "txdmv.gov", "dmv.gov", "sssanswers.com", "norfolk.gov", "nrha.us",
+        "culture.gouv.fr", "gouv.fr",
+        # Generic explainers & non-African media portals
+        "livescience.com", "theculturefactor.com", "radiofrance.fr",
         # Non-event media, movies & video game release calendars
         "rottentomatoes.com", "moviefone.com", "imdb.com", "fandango.com",
         "sensacine.com", "warnerbros.com", "sky.com", "wavy.com", "whro.org",
@@ -147,7 +180,7 @@ def get_web_urls(search_term: str, num_results: int = 15) -> tuple[list[str], st
             "q": clean_query,
             "format": "json",
             "language": "all",
-            "engines": "google,bing,duckduckgo,google news,qwant",
+            "engines": "google,bing,duckduckgo,google news",
         })
         req_url = f"{SEARXNG_URL}/search?{params}"
         print(f"Querying SearXNG: {req_url}")
@@ -159,13 +192,17 @@ def get_web_urls(search_term: str, num_results: int = 15) -> tuple[list[str], st
         with urllib.request.urlopen(req, timeout=15) as resp:
             data = json.loads(resp.read().decode())
 
+        if data.get("unresponsive_engines"):
+            print(f"SearXNG unresponsive engines: {data['unresponsive_engines']}")
+
         valid_results = []
         for r in data.get("results", []):
             clean_url = sanitize_url(r.get("url", ""), discard_domains)
             if clean_url:
                 r_copy = dict(r)
                 r_copy["url"] = clean_url
-                valid_results.append(r_copy)
+                if _is_relevant_result(r_copy, clean_query):
+                    valid_results.append(r_copy)
 
         raw_results = valid_results[:num_results]
 
